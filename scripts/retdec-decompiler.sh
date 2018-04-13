@@ -253,7 +253,7 @@ while true; do
 	case "$1" in
 	-a|--arch)						# Target architecture.
 		[ "$ARCH" ] && print_error_and_die "Duplicate option: -a|--arch"
-		[ "$2" != "mips" -a "$2" != "pic32" -a "$2" != "arm" -a "$2" != "thumb" -a "$2" != "powerpc" -a "$2" != "x86" ] && print_error_and_die "Unsupported target architecture '$2'. Supported architectures: Intel x86, ARM, ARM+Thumb, MIPS, PIC32, PowerPC."
+		[ "$2" != "mips" -a "$2" != "pic32" -a "$2" != "arm" -a "$2" != "thumb" -a "$2" != "powerpc" -a "$2" != "x86" -a "$2" != "tricore" ] && print_error_and_die "Unsupported target architecture '$2'. Supported architectures: Intel x86, ARM, ARM+Thumb, MIPS, PIC32, PowerPC, TriCore."
 		ARCH="$2"
 		shift 2;;
 	-e|--endian)				# Endian.
@@ -771,9 +771,12 @@ if [ "$MODE" = "bin" ] || [ "$MODE" = "raw" ]; then
 		ORDS_DIR="$X86_ORDS_DIR"
 	elif [ "$ARCH" = "powerpc" -o "$ARCH" = "mips" -o "$ARCH" = "pic32" ]; then
 		: # nothing
+        elif [ "$ARCH" = "tricore" -o "$ARCH" = "TRICORE" -o "$ARCH" = "siemens tricore embedded processor" ]; then
+		ORDS_DIR="$TRICORE_ORDS_DIR"
+
 	else
 		cleanup
-		print_error_and_die "Unsupported target architecture '${ARCH^^}'. Supported architectures: Intel x86, ARM, ARM+Thumb, MIPS, PIC32, PowerPC."
+		print_error_and_die "Unsupported target architecture '${ARCH^^}'. Supported architectures: Intel x86, ARM, ARM+Thumb, MIPS, PIC32, PowerPC, TriCore."
 	fi
 
 	# Check file class (e.g. "ELF32", "ELF64"). At present, we can only decompile 32-bit files.

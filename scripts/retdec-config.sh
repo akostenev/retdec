@@ -37,6 +37,10 @@ ARM_ORDS_DIR="$INSTALL_SUPPORT_DIR/arm/ords"
 ## X86-specific configuration
 X86_ORDS_DIR="$INSTALL_SUPPORT_DIR/x86/ords"
 
+## Tricore-specific configuration
+TRICORE_ORDS_DIR="$INSTALL_SUPPORT_DIR/tricore/ords"
+
+
 ## BIN2LLVMIR parameters
 # The following list of passes is -O3
 #   * with -disable-inlining -disable-simplify-libcalls -constprop -die -dce -ipconstprop -instnamer

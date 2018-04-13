@@ -16,6 +16,10 @@ add_subdirectory(yaracpp)
 add_subdirectory(yaramod)
 add_subdirectory(whereami)
 
+if(RETDEC_DEV_TOOLS)
+	add_subdirectory(keystone)
+endif()
+
 if(RETDEC_TESTS)
 	add_subdirectory(googletest)
 	add_subdirectory(keystone)
