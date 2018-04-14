@@ -13,6 +13,7 @@
 #include "retdec/capstone2llvmir/mips/mips.h"
 #include "retdec/capstone2llvmir/powerpc/powerpc.h"
 #include "retdec/capstone2llvmir/x86/x86.h"
+#include "retdec/capstone2llvmir/tricore/tricore.h"
 
 namespace retdec {
 namespace capstone2llvmir {
@@ -122,6 +123,10 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createArch
 		case CS_ARCH_XCORE:
 		{
 			return createXcore(m, extra);
+		}
+		case CS_ARCH_ALL: //TODO CS_ARCH_TRICORE ?
+		{
+			return createTricore(m, extra);
 		}
 		default:
 		{
@@ -383,6 +388,20 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createXcor
 {
 	assert(false && "not implemented");
 	return nullptr;
+}
+
+/**
+ * Create TriCore translator with extra mode @c extra.
+ * This is meant to be used when TriCore needs to be used with extra mode
+ * like @c CS_MODE_BIG_ENDIAN.
+ * @return Unique pointer to created translator, or @c nullptr if translator
+ * (with the specified mode) could not be created.
+ */
+std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createTricore(
+		llvm::Module* m,
+		cs_mode extra)
+{
+	return std::make_unique<Capstone2LlvmIrTranslatorTricore>(m, CS_MODE_QPX, extra);
 }
 
 void Capstone2LlvmIrTranslator::openHandle()
@@ -813,7 +832,9 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslator::translat
 {
 	TranslationResult res;
 
-	cs_insn* insn = cs_malloc(_handle);
+	//TODO CRASH HERE
+// 	cs_insn* insn = cs_malloc(_handle);
+	cs_insn* insn = new cs_insn();
 
 	const uint8_t* code = bytes.data();
 	size_t size = bytes.size();

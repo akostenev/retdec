@@ -52,6 +52,7 @@ class ProgramOptions
 					else if (_arch == "sparc") arch = CS_ARCH_SPARC;
 					else if (_arch == "sysz") arch = CS_ARCH_SYSZ;
 					else if (_arch == "xcore") arch = CS_ARCH_XCORE;
+					else if (_arch == "tricore") arch = CS_ARCH_ALL; //TODO check
 					else printHelpAndDie();
 				}
 				else if (c == "-b")
@@ -142,7 +143,7 @@ class ProgramOptions
 		{
 			cout << _programName << ":\n"
 				"\t-a name   Set architecture name.\n"
-				"\t          Possible values: arm, arm64, mips, x86, ppc, sparc, sysz, xcore\n"
+				"\t          Possible values: arm, arm64, mips, x86, ppc, sparc, sysz, xcore, tricore\n"
 				"\t          Default value: x86.\n"
 				"\t-b base   Base address in hexadecimal format (e.g. 0x1000).\n"
 				"\t          Default value 0x1000.\n"
@@ -207,6 +208,9 @@ ks_arch capstoneArchToKeystoneArch(cs_arch a)
 		case CS_ARCH_PPC: return KS_ARCH_PPC;
 		case CS_ARCH_SPARC: return KS_ARCH_SPARC;
 		case CS_ARCH_SYSZ: return KS_ARCH_SYSTEMZ;
+		
+		//TODO add Tricore with KS_ARCH_ALL?
+		
 		case CS_ARCH_XCORE:
 		case CS_ARCH_MAX:
 		case CS_ARCH_ALL:

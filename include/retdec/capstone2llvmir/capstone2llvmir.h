@@ -89,6 +89,9 @@ class Capstone2LlvmIrTranslator
 		static std::unique_ptr<Capstone2LlvmIrTranslator> createXcore(
 				llvm::Module* m,
 				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+		static std::unique_ptr<Capstone2LlvmIrTranslator> createTricore(
+				llvm::Module* m,
+				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
 
 		virtual ~Capstone2LlvmIrTranslator();
 

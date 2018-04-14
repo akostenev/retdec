@@ -35,6 +35,7 @@ class Architecture
 		bool isX86_32() const;
 		bool isX86_64() const;
 		bool isPpc() const;
+		bool isTricore() const;
 		bool isEndianLittle() const;
 		bool isEndianBig() const;
 		bool isEndianKnown() const;
@@ -50,6 +51,7 @@ class Architecture
 		void setIsThumb();
 		void setIsX86();
 		void setIsPpc();
+		void setIsTricore();
 		void setIsEndianLittle();
 		void setIsEndianBig();
 		void setIsEndianUnknown();

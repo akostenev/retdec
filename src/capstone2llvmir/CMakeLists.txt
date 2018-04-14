@@ -8,6 +8,8 @@ set(CAPSTONE2LLVMIR_SOURCES
 	x86/x86_init.cpp
 	x86/x86.cpp
 	capstone2llvmir.cpp
+	tricore/tricore_init.cpp
+	tricore/tricore.cpp
 )
 
 add_library(retdec-capstone2llvmir STATIC ${CAPSTONE2LLVMIR_SOURCES})

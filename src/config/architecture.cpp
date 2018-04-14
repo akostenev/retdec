@@ -18,6 +18,8 @@ const std::string ARCH_ARM     = "arm";
 const std::string ARCH_THUMB   = "thumb";
 const std::string ARCH_x86     = "x86";
 const std::string ARCH_PPC     = "powerpc";
+const std::string ARCH_TRICORE     = "siemens tricore embedded processor";
+
 
 const std::string JSON_name    = "name";
 const std::string JSON_endian  = "endian";
@@ -44,6 +46,7 @@ bool Architecture::isKnown() const      { return !isUnknown(); }
 bool Architecture::isUnknown() const    { return !(isArmOrThumb() || isMips() || isPic32() || isX86() || isPpc()); }
 bool Architecture::isMips() const       { return isArch(ARCH_MIPS); }
 bool Architecture::isMipsOrPic32() const{ return isMips() || isPic32(); }
+bool Architecture::isTricore() const{ return isArch(ARCH_TRICORE); }
 
 /**
  * Checks if this architecture instance matches with the provided architecture name.
@@ -68,6 +71,7 @@ void Architecture::setIsThumb()   { _name = ARCH_THUMB; }
 void Architecture::setIsX86()     { _name = ARCH_x86; }
 void Architecture::setIsPpc()     { _name = ARCH_PPC; }
 void Architecture::setIsPic32()   { _name = ARCH_PIC32; }
+void Architecture::setIsTricore()   { _name = ARCH_TRICORE; }
 
 unsigned Architecture::getBitSize() const  { return _bitSize; }
 

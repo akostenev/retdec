@@ -10,7 +10,7 @@
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
 #include "retdec/bin2llvmir/utils/defs.h"
-#define debug_enabled false
+#define debug_enabled true
 #include "retdec/stacofin/stacofin.h"
 
 using namespace retdec::utils;
@@ -263,6 +263,9 @@ std::set<std::string> selectSignaturePaths(FileImage* image, Config* config)
 			else if (c.tools.isTool("4.5.2"))
 			{
 				selectSignaturesWithNames(allSigs, sigs, {"gcc-4.5.2"}, {"psp", "pic32", "uClibc"});
+			} else if (c.tools.isTool("4.6.4"))
+			{
+				selectSignaturesWithNames(allSigs, sigs, {"gcc-4.6.4"}, {"psp", "pic32", "uClibc"});
 			}
 		}
 	}

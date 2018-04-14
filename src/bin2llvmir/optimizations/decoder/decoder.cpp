@@ -13,7 +13,7 @@
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
 #include "retdec/bin2llvmir/utils/defs.h"
-#define debug_enabled false
+#define debug_enabled true
 #include "retdec/llvm-support/utils.h"
 
 using namespace retdec::llvm_support;
@@ -2080,6 +2080,10 @@ bool Decoder::initTranslator()
 	{
 		arch = CS_ARCH_ARM;
 		basicMode = CS_MODE_ARM;
+	}
+	else if (_config->getConfig().architecture.isTricore()) {
+		arch = CS_ARCH_ALL;
+		basicMode = CS_MODE_LITTLE_ENDIAN; //TODO check
 	}
 
 	_c2l = Capstone2LlvmIrTranslator::createArch(

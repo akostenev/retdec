@@ -20,7 +20,8 @@ namespace capstone2llvmir {
 enum x86_reg_rflags
 {
 // FLAGS
-	X86_REG_CF = X86_REG_ENDING + 1, // 0
+// 	X86_REG_CF = X86_REG_ENDING + 1, // 0
+	X86_REG_CF = 0,
 	// reserved 1
 	X86_REG_PF, // 2
 	// reserved 3
