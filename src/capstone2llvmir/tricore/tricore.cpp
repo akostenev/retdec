@@ -1,13 +1,6 @@
-/**
- * @file src/capstone2llvmir/x86/x86.cpp
- * @brief TriCore implementation of @c Capstone2LlvmIrTranslator.
- * @copyright (c) 2017 Avast Software, licensed under the MIT license
- */
-
-#include <iomanip>
-#include <iostream>
-
 #include "retdec/capstone2llvmir/tricore/tricore.h"
+
+#include <iostream>
 
 namespace retdec {
 namespace capstone2llvmir {
@@ -18,31 +11,267 @@ Capstone2LlvmIrTranslatorTricore::Capstone2LlvmIrTranslatorTricore(
 		cs_mode extra)
 		:
 		Capstone2LlvmIrTranslator(CS_ARCH_ALL, basic, extra, m)
-// 		,
-// 		_origBasicMode(basic),
-// 		_reg2parentMap(X86_REG_ENDING, X86_REG_INVALID)
 {
-	// This needs to be called from concrete's class ctor, not abstract's
-	// class ctor, so that virtual table is properly initialized.
-// 	initialize();
-	
+	initializeRegNameMap();
+	initializeRegTypeMap();
+	initializeArchSpecific();
+
 	generateEnvironment();
 }
 
 Capstone2LlvmIrTranslatorTricore::~Capstone2LlvmIrTranslatorTricore()
 {
-	// Nothing specific to x86.
+	// Nothing specific to TriCore.
 }
 
-/** //TODO
- * x86 is special. When this returns @c true, mode can be used to initialize
- * x86 translator, but it does not have to be possible to modify translator
- * with this mode later. See @c modifyBasicMode().
- */
+Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::translate(
+		const std::vector<uint8_t>& bytes,
+		retdec::utils::Address a,
+		llvm::IRBuilder<>& irb,
+		bool stopOnBranch) {
+	TranslationResult res;
+
+	/**
+	 * Build tricore2capstone (light)
+	 */
+	for (auto it = std::begin(bytes), end = std::end(bytes); it != end; ) {
+		cs_insn i;
+		i.id = (*it); // op1
+		i.address = a;
+
+		if ((*it) & 1) { // 32-Bit instruction
+			i.size = 4;
+			i.bytes[0] = *it++;
+			i.bytes[1] = *it++;
+			i.bytes[2] = *it++;
+			i.bytes[3] = *it++;
+		} else { // 16-bit instruction
+			i.size = 2;
+			i.bytes[0] = *it++;
+			i.bytes[1] = *it++;
+		}
+
+		// and translate it
+		translateInstruction(&i, irb);
+	}
+
+	return res;
+}
+
+void Capstone2LlvmIrTranslatorTricore::translateInstruction(
+		cs_insn* i,
+		llvm::IRBuilder<>& irb)
+{
+// 	for (unsigned int j = 0; j < i->size; j++) {
+// 		std::cout << "translateInstruction byte " << j << " " << std::hex << static_cast<int>(i->bytes[j]) << std::endl;
+// 	}
+
+// 	_insn = i;
+
+	auto fIt = _i2fm.find(i->id);
+	if (fIt != _i2fm.end() && fIt->second != nullptr)
+	{
+		auto f = fIt->second;
+		(this->*f)(i, irb);
+	}
+	else
+	{
+// 		std::stringstream msg;
+// 		msg << "Translation of unhandled instruction: " << i->id << std::endl;
+// 		throw Capstone2LlvmIrError(msg.str());
+
+// 		std::cout << "Translation of unhandled instruction: " << i->id << std::endl;
+	}
+}
+
+llvm::IntegerType* Capstone2LlvmIrTranslatorTricore::getDefaultType()
+{
+	return llvm::Type::getInt32Ty(_module->getContext());
+}
+
+
+llvm::Value* Capstone2LlvmIrTranslatorTricore::loadRegister(
+		uint32_t r,
+		llvm::IRBuilder<>& irb)
+{
+	if (r == TRICORE_REG_INVALID)
+	{
+		return nullptr;
+	}
+
+	if (r == TRICORE_REG_PC)
+	{
+		return getCurrentPc(_insn);
+	}
+
+	//TODO
+// 	if (r == MIPS_REG_ZERO)
+// 	{
+// 		return llvm::ConstantInt::getSigned(
+// 			getDefaultType(),
+// 			0);
+// 	}
+//
+// 	if (cs_insn_group(_handle, _insn, MIPS_GRP_NOTFP64BIT)
+// 			&& MIPS_REG_F0 <= r
+// 			&& r <= MIPS_REG_F31)
+// 	{
+// 		r = singlePrecisionToDoublePrecisionFpRegister(r);
+// 	}
+
+	auto* llvmReg = getRegister(r);
+	if (llvmReg == nullptr)
+	{
+		throw Capstone2LlvmIrError("loadRegister() unhandled reg.");
+	}
+	return irb.CreateLoad(llvmReg);
+}
+
+llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(
+		cs_tricore_op& op,
+		llvm::IRBuilder<>& irb,
+		llvm::Type* ty)
+{
+	switch (op.type)
+	{
+		case TRICORE_OP_REG:
+		{
+			return loadRegister(op.reg, irb);
+		}
+		case TRICORE_OP_IMM:
+		{
+			// TODO: Maybe this will cause problems.
+			// In 32-bit MIPS, imms are 16 bits (always?).
+			// What if number will be negative on 16 bits, but because we
+			// take it here and create 32 bit, it loses it negativity?
+			// The same in 64-bit MIPS.
+			// However, maybe it will be ok, because cs_mips_op.imm is signed
+			// int64_t, so if Capstone interprets it ok for us, then we probably
+			// do not need to bother with it.
+			return llvm::ConstantInt::getSigned(getDefaultType(), op.imm);
+		}
+		case TRICORE_OP_MEM:
+		{
+			auto* baseR = loadRegister(op.mem.base, irb);
+			auto* t = getDefaultType();
+			llvm::Value* disp = llvm::ConstantInt::getSigned(t, op.mem.disp);
+
+			llvm::Value* addr = nullptr;
+			if (baseR == nullptr)
+			{
+				addr = disp;
+			}
+			else
+			{
+				if (op.mem.disp == 0)
+				{
+					addr = baseR;
+				}
+				else
+				{
+					disp = irb.CreateSExtOrTrunc(disp, baseR->getType());
+					addr = irb.CreateAdd(baseR, disp);
+				}
+			}
+
+			auto* lty = ty ? ty : t;
+			auto* pt = llvm::PointerType::get(lty, 0);
+			addr = irb.CreateIntToPtr(addr, pt);
+			return irb.CreateLoad(addr);
+		}
+		case TRICORE_OP_INVALID:
+		default:
+		{
+			assert(false && "should not be possible");
+			return nullptr;
+		}
+	}
+}
+
+llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOpUnary(
+		cs_tricore* mi,
+		llvm::IRBuilder<>& irb)
+{
+	if (mi->op_count != 1)
+	{
+		throw Capstone2LlvmIrError("This is not a unary instruction.");
+	}
+
+	return loadOp(mi->operands[0], irb);
+}
+
+std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorTricore::loadOpBinary(
+		cs_tricore* mi,
+		llvm::IRBuilder<>& irb,
+		eOpConv ct)
+{
+	if (mi->op_count != 2)
+	{
+		throw Capstone2LlvmIrError("This is not a binary instruction.");
+	}
+
+	auto* op0 = loadOp(mi->operands[0], irb);
+	auto* op1 = loadOp(mi->operands[1], irb);
+	if (op0 == nullptr || op1 == nullptr)
+	{
+		throw Capstone2LlvmIrError("Operands loading failed.");
+	}
+
+	if (op0->getType() != op1->getType())
+	{
+		switch (ct)
+		{
+			case eOpConv::SECOND_SEXT:
+			{
+				op1 = irb.CreateSExtOrTrunc(op1, op0->getType());
+				break;
+			}
+			case eOpConv::SECOND_ZEXT:
+			{
+				op1 = irb.CreateZExtOrTrunc(op1, op0->getType());
+				break;
+			}
+			case eOpConv::NOTHING:
+			{
+				break;
+			}
+			default:
+			case eOpConv::THROW:
+			{
+				throw Capstone2LlvmIrError("Binary operands' types not equal.");
+			}
+		}
+	}
+
+	return std::make_pair(op0, op1);
+}
+
+
+llvm::Value* Capstone2LlvmIrTranslatorTricore::getCurrentPc(cs_insn* i)
+{
+	return getNextInsnAddress(i);
+}
+
+llvm::Value* Capstone2LlvmIrTranslatorTricore::getNextInsnAddress(cs_insn* i)
+{
+	return llvm::ConstantInt::get(
+		getDefaultType(),
+		i->address + i->size);
+}
+
+llvm::Value* Capstone2LlvmIrTranslatorTricore::getNextNextInsnAddress(cs_insn* i)
+{
+	return llvm::ConstantInt::get(llvm::Type::getInt32Ty(_module->getContext()),
+		i->address + (2 * i->size));
+}
+
+
+
+
+
 bool Capstone2LlvmIrTranslatorTricore::isAllowedBasicMode(cs_mode m)
 {
-// 	return m == CS_MODE_16 || m == CS_MODE_32 || m == CS_MODE_64;
-	return m == CS_MODE_THUMB;
+	return m == CS_MODE_THUMB; // there is no CS_MODE_TRICORE...
 }
 
 bool Capstone2LlvmIrTranslatorTricore::isAllowedExtraMode(cs_mode m)
@@ -50,121 +279,38 @@ bool Capstone2LlvmIrTranslatorTricore::isAllowedExtraMode(cs_mode m)
 	return m == CS_MODE_LITTLE_ENDIAN || m == CS_MODE_BIG_ENDIAN;
 }
 
-
-/** //TODO
- * x86 allows to change basic mode only to modes lower than the original
- * initialization mode an back to original mode (CS_MODE_16 < CS_MODE_32
- * < CS_MODE_64). This is because the original mode is used to initialize
- * module's environment with registers and other specific features. It is
- * possible to simulate lower modes in environments created for higher modes
- * (e.g. get ax register from eax), but not the other way around (e.g. get
- * rax from eax).bytes
- */
 void Capstone2LlvmIrTranslatorTricore::modifyBasicMode(cs_mode m)
 {
-	return;
-// 	if (!isAllowedBasicMode(m))
-// 	{
-// 		throw Capstone2LlvmIrModeError(
-// 				_arch,
-// 				m,
-// 				Capstone2LlvmIrModeError::eType::BASIC_MODE);
-// 	}
-// 
-// 	if ((_origBasicMode == CS_MODE_16)
-// 			|| (_origBasicMode == CS_MODE_32 && m == CS_MODE_64))
-// 	{
-// 		throw Capstone2LlvmIrModeError(
-// 				_arch,
-// 				m,
-// 				Capstone2LlvmIrModeError::eType::BASIC_MODE_CHANGE);
-// 	}
-// 
-// 	if (cs_option(_handle, CS_OPT_MODE, m + _extraMode) != CS_ERR_OK)
-// 	{
-// 		throw CapstoneError(cs_errno(_handle));
-// 	}
-// 
-// 	_basicMode = m;
+	// unsupported
 }
 
-/** TODO
- * It does not really make sense to change extra mode (little <-> big endian)
- * for x86 architecture, but it should not crash or anything, so whatever.
- */
 void Capstone2LlvmIrTranslatorTricore::modifyExtraMode(cs_mode m)
 {
-// 	return;
-// 	if (!isAllowedExtraMode(m))
-// 	{
-// 		throw Capstone2LlvmIrModeError(
-// 				_arch,
-// 				m,
-// 				Capstone2LlvmIrModeError::eType::EXTRA_MODE);
-// 	}
-// 
-// 	if (cs_option(_handle, CS_OPT_MODE, m + _basicMode) != CS_ERR_OK)
-// 	{
-// 		throw CapstoneError(cs_errno(_handle));
-// 	}
-// 
-// 	_extraMode = m;
+	// unsupported
 }
 
-/**
- * TODO
- */
 void Capstone2LlvmIrTranslatorTricore::generateEnvironmentArchSpecific()
 {
-	return;
-// 	generateX87RegLoadStoreFunctions();
+	// Nothing.
 }
 
-/**
- * TODO
- */
 void Capstone2LlvmIrTranslatorTricore::generateDataLayout()
 {
-	return;
-// 	switch (_origBasicMode)
-// 	{
-// 		case CS_MODE_16:
-// 		{
-// 			_module->setDataLayout("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128"); // clang -m16
-// 			break;
-// 		}
-// 		case CS_MODE_32:
-// 		{
-// 			_module->setDataLayout("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128"); // clang -m32
-// 			break;
-// 		}
-// 		case CS_MODE_64:
-// 		{
-// 			_module->setDataLayout("e-m:e-i64:64-f80:128-n8:16:32:64-S128"); // clang
-// 			break;
-// 		}
-// 		default:
-// 		{
-// 			throw Capstone2LlvmIrError("Unhandled mode in getStackPointerRegister().");
-// 			break;
-// 		}
-// 	}
+	/**
+	 * @src http://llvm.org/docs/LangRef.html#data-layout
+	 * e little endian
+	 * m:e ELF mangling
+	 * p:32:32 32 bit pointer
+	 * TODO floting point registers? f32 f64 f80 f128?
+	 * n:32 native integer widths
+	 * S:64 @src Tricore 1.6 Vol 1: 2.2.1 Table 2-1
+	 */
+	_module->setDataLayout("e-m:e-p:32:32-n32-S64");
 }
 
 uint32_t Capstone2LlvmIrTranslatorTricore::getArchByteSize()
 {
 	return 4;
-// 	switch (_origBasicMode)
-// 	{
-// 		case CS_MODE_16: return 2;
-// 		case CS_MODE_32: return 4;
-// 		case CS_MODE_64: return 8;
-// 		default:
-// 		{
-// 			throw Capstone2LlvmIrError("Unhandled mode in getArchByteSize().");
-// 			break;
-// 		}
-// 	}
 }
 
 uint32_t Capstone2LlvmIrTranslatorTricore::getArchBitSize()
@@ -177,163 +323,51 @@ uint32_t Capstone2LlvmIrTranslatorTricore::getArchBitSize()
  */
 void Capstone2LlvmIrTranslatorTricore::generateRegisters()
 {
-// 	generateRegistersCommon();
-// 
-// 	switch (_origBasicMode)
-// 	{
-// 		case CS_MODE_16: generateRegisters16(); break;
-// 		case CS_MODE_32: generateRegisters32(); break;
-// 		case CS_MODE_64: generateRegisters64(); break;
-// 		default:
-// 		{
-// 			throw Capstone2LlvmIrError("Unhandled mode in generateRegisters().");
-// 			break;
-// 		}
-// 	}
+	createRegister(TRICORE_REG_PC, _regLt);
+	createRegister(TRICORE_REG_PSW, _regLt);
+	createRegister(TRICORE_REG_PCXI, _regLt);
+	createRegister(TRICORE_REG_ISP, _regLt);
+	createRegister(TRICORE_REG_SYSCON, _regLt);
+	createRegister(TRICORE_REG_CPU_ID, _regLt);
+	createRegister(TRICORE_REG_COMPAT, _regLt);
+
+	createRegister(TRICORE_REG_D_0, _regLt);
+	createRegister(TRICORE_REG_D_1, _regLt);
+	createRegister(TRICORE_REG_D_2, _regLt);
+	createRegister(TRICORE_REG_D_3, _regLt);
+	createRegister(TRICORE_REG_D_4, _regLt);
+	createRegister(TRICORE_REG_D_5, _regLt);
+	createRegister(TRICORE_REG_D_6, _regLt);
+	createRegister(TRICORE_REG_D_7, _regLt);
+	createRegister(TRICORE_REG_D_8, _regLt);
+	createRegister(TRICORE_REG_D_9, _regLt);
+	createRegister(TRICORE_REG_D_10, _regLt);
+	createRegister(TRICORE_REG_D_11, _regLt);
+	createRegister(TRICORE_REG_D_12, _regLt);
+	createRegister(TRICORE_REG_D_13, _regLt);
+	createRegister(TRICORE_REG_D_14, _regLt);
+	createRegister(TRICORE_REG_D_15, _regLt);
+
+	createRegister(TRICORE_REG_A_0, _regLt);
+	createRegister(TRICORE_REG_A_1, _regLt);
+	createRegister(TRICORE_REG_A_2, _regLt);
+	createRegister(TRICORE_REG_A_3, _regLt);
+	createRegister(TRICORE_REG_A_4, _regLt);
+	createRegister(TRICORE_REG_A_5, _regLt);
+	createRegister(TRICORE_REG_A_6, _regLt);
+	createRegister(TRICORE_REG_A_7, _regLt);
+	createRegister(TRICORE_REG_A_8, _regLt);
+	createRegister(TRICORE_REG_A_9, _regLt);
+	createRegister(TRICORE_REG_A_10, _regLt);
+	createRegister(TRICORE_REG_A_11, _regLt);
+	createRegister(TRICORE_REG_A_12, _regLt);
+	createRegister(TRICORE_REG_A_13, _regLt);
+	createRegister(TRICORE_REG_A_14, _regLt);
+	createRegister(TRICORE_REG_A_15, _regLt);
 }
 
-/**
- * TODO
- */
-void Capstone2LlvmIrTranslatorTricore::translateInstruction(
-		cs_insn* i,
-		llvm::IRBuilder<>& irb)
-{
-	std::cout << i->mnemonic << " " << i->op_str << std::endl;
-	std::cout << i->bytes << std::endl;
-	return;
-// 	_insn = i;
-// 
-// 	cs_detail* d = i->detail;
-// 	cs_x86* xi = &d->x86;
-// 
-// 	// At the moment, we want to notice these instruction and check if we
-// 	// can translate them without any special handling.
-// 	// There are more internals in cs_x86 (e.g. sib, sicp), but Capstone
-// 	// uses them to interpret instruction operands and we do not have to do
-// 	// it ourselves.
-// 	// It is likely that the situation will be the same for these, but we
-// 	// still want to manually check.
-// 	//
-// 
-// 	// REP @ INS, OUTS, MOVS, LODS, STOS
-// 	// REPE/REPZ @ CMPS, SCAS
-// 	// REPNE/REPNZ @ CMPS, SCAS
-// 	//
-// 	// X86_PREFIX_REP == X86_PREFIX_REPE
-// 	//
-// 	static std::set<unsigned> handledReps =
-// 	{
-// 		// X86_PREFIX_REP
-// 		X86_INS_OUTSB, X86_INS_OUTSD, X86_INS_OUTSW,
-// 		X86_INS_INSB, X86_INS_INSD, X86_INS_INSW,
-// 		X86_INS_STOSB, X86_INS_STOSD, X86_INS_STOSQ, X86_INS_STOSW,
-// 		X86_INS_MOVSB, X86_INS_MOVSW, X86_INS_MOVSD, X86_INS_MOVSQ,
-// 		X86_INS_LODSB, X86_INS_LODSW, X86_INS_LODSD, X86_INS_LODSQ,
-// 		// X86_PREFIX_REPE
-// 		X86_INS_CMPSB, X86_INS_CMPSW, X86_INS_CMPSD, X86_INS_CMPSQ,
-// 		X86_INS_SCASB, X86_INS_SCASW, X86_INS_SCASD, X86_INS_SCASQ
-// 	};
-// 	static std::set<unsigned> handledRepnes =
-// 	{
-// 		// X86_PREFIX_REPNE
-// 		X86_INS_CMPSB, X86_INS_CMPSW, X86_INS_CMPSD, X86_INS_CMPSQ,
-// 		X86_INS_SCASB, X86_INS_SCASW, X86_INS_SCASD, X86_INS_SCASQ,
-// 		// BND prefix == X86_PREFIX_REPNE
-// 		// Some total bullshit, ignore it for all of these instructions:
-// 		X86_INS_CALL, X86_INS_LCALL, X86_INS_RET, X86_INS_JMP,
-// 		X86_INS_JAE, X86_INS_JA, X86_INS_JBE, X86_INS_JB, X86_INS_JE, X86_INS_JGE,
-// 		X86_INS_JG, X86_INS_JLE, X86_INS_JL, X86_INS_JNE, X86_INS_JNO,
-// 		X86_INS_JNP, X86_INS_JNS, X86_INS_JO, X86_INS_JP, X86_INS_JS
-// 	};
-// 	if (xi->prefix[0])
-// 	{
-// 		if (xi->prefix[0] == X86_PREFIX_REP
-// 				&& handledReps.find(i->id) == handledReps.end())
-// 		{
-// //std::cout << "prefix[0] == X86_PREFIX_REP @ " << std::hex << i->address << std::endl;
-// //exit(1);
-// //			assert(false && "rep prefix not handled");
-// 			return;
-// 		}
-// 		else if (xi->prefix[0] == X86_PREFIX_REP)
-// 		{
-// 			// Nothing, REP should be handled.
-// 		}
-// 		else if (xi->prefix[0] == X86_PREFIX_REPNE
-// 				&& handledRepnes.find(i->id) == handledRepnes.end())
-// 		{
-// //std::cout << "prefix[0] == X86_PREFIX_REPNE @ " << std::hex << i->address << std::endl;
-// //std::cout << i->mnemonic << " " << i->op_str << std::endl;
-// //exit(1);
-// //			assert(false && "repne prefix not handled");
-// 			return;
-// 		}
-// 		else if (xi->prefix[0] == X86_PREFIX_REPNE)
-// 		{
-// 			// Nothing, REPNE should be handled.
-// 		}
-// 		else if (xi->prefix[0] == X86_PREFIX_LOCK)
-// 		{
-// 			// Nothing, LOCK does not matter for decompilation.
-// 		}
-// 	}
-// 
-// //	assert(!xi->sse_cc);
-// //	assert(!xi->avx_cc);
-// //	assert(!xi->avx_sae);
-// //	assert(!xi->avx_rm);
-// 
-// 	auto fIt = _i2fm.find(i->id);
-// 	if (fIt != _i2fm.end() && fIt->second != nullptr)
-// 	{
-// 		auto f = fIt->second;
-// //std::cout << std::hex << i->address << " @ " << i->mnemonic << " " << i->op_str << std::endl;
-// 		(this->*f)(i, xi, irb);
-// 	}
-// 	else
-// 	{
-// 		bool silentSkip = true;
-// 		for (unsigned j = 0; j < d->groups_count; ++j)
-// 		{
-// 			static std::set<uint8_t> ignoredGroups =
-// 			{
-// 					X86_GRP_3DNOW,
-// 					X86_GRP_AES,
-// 					X86_GRP_ADX,
-// 					X86_GRP_AVX,
-// 					X86_GRP_AVX2,
-// 					X86_GRP_AVX512,
-// 					X86_GRP_MMX,
-// 					X86_GRP_SHA,
-// 					X86_GRP_SSE1,
-// 					X86_GRP_SSE2,
-// 					X86_GRP_SSE3,
-// 					X86_GRP_SSE41,
-// 					X86_GRP_SSE42,
-// 					X86_GRP_SSE4A,
-// 					X86_GRP_SSSE3,
-// 			};
-// 			uint32_t g = d->groups[j];
-// 			if (ignoredGroups.count(g))
-// 			{
-// 				silentSkip = true;
-// 				break;
-// 			}
-// 		}
-// 
-// 		if (!silentSkip)
-// 		{
-// 			std::stringstream msg;
-// 			msg << "Translation of unhandled instruction: " << i->id << " ("
-// 					<< i->mnemonic << " " << i->op_str << ") @ " << std::hex
-// 					<< i->address << "\n";
-// //std::cout << msg.str() << std::endl;
-// //exit(1);
-// 			throw Capstone2LlvmIrError(msg.str());
-// 		}
-// 	}
-}
+
+
 
 } // namespace capstone2llvmir
 } // namespace retdec

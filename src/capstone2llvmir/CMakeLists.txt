@@ -10,6 +10,7 @@ set(CAPSTONE2LLVMIR_SOURCES
 	capstone2llvmir.cpp
 	tricore/tricore_init.cpp
 	tricore/tricore.cpp
+	tricore/tricore_translate.cpp
 )
 
 add_library(retdec-capstone2llvmir STATIC ${CAPSTONE2LLVMIR_SOURCES})

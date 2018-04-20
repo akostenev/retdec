@@ -832,9 +832,7 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslator::translat
 {
 	TranslationResult res;
 
-	//TODO CRASH HERE
-// 	cs_insn* insn = cs_malloc(_handle);
-	cs_insn* insn = new cs_insn();
+	cs_insn* insn = cs_malloc(_handle);
 
 	const uint8_t* code = bytes.data();
 	size_t size = bytes.size();
