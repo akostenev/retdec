@@ -8,6 +8,7 @@
 #define RETDEC_CAPSTONE2LLVMIR_TRICORE_TRICORE_H
 
 #include <array>
+#include <bitset>
 #include <tuple>
 #include <utility>
 
@@ -16,98 +17,113 @@
 
 namespace retdec {
 namespace capstone2llvmir {
-	class Capstone2LlvmIrTranslatorTricore : public Capstone2LlvmIrTranslator
-{
-	// Constructor, destructor.
-	//
-	public:
-		Capstone2LlvmIrTranslatorTricore(
-				llvm::Module* m,
-				cs_mode basic = CS_MODE_32,
-				cs_mode extra = CS_MODE_LITTLE_ENDIAN);
-		virtual ~Capstone2LlvmIrTranslatorTricore();
 
-		/**
-		* Override translate, for tricore2capstone
-		*/
-		virtual Capstone2LlvmIrTranslator::TranslationResult translate(
-			const std::vector<uint8_t>& bytes,
-			retdec::utils::Address a,
-			llvm::IRBuilder<>& irb,
-			bool stopOnBranch = false);
+class Capstone2LlvmIrTranslatorTricore : public Capstone2LlvmIrTranslator {
+public:
+    Capstone2LlvmIrTranslatorTricore(llvm::Module* m, cs_mode basic = CS_MODE_32, cs_mode extra = CS_MODE_LITTLE_ENDIAN);
+    virtual ~Capstone2LlvmIrTranslatorTricore();
 
-	protected:
-		virtual void translateInstruction(
-			cs_insn* i,
-			llvm::IRBuilder<>& irb) override;
-
-	// Public pure virtual methods that must be implemented in concrete classes.
-	//
-	public:
-		virtual bool isAllowedBasicMode(cs_mode m) override;
-		virtual bool isAllowedExtraMode(cs_mode m) override;
-		virtual void modifyBasicMode(cs_mode m) override;
-		virtual void modifyExtraMode(cs_mode m) override;
-		virtual uint32_t getArchByteSize() override;
-		virtual uint32_t getArchBitSize() override;
-
-	// Protected pure virtual methods that must be implemented in concrete
-	// classes.
-	//
-	protected:
-		virtual void initializeArchSpecific() override;
-		virtual void initializeRegNameMap() override;
-		virtual void initializeRegTypeMap() override;
-		virtual void generateEnvironmentArchSpecific() override;
-		virtual void generateDataLayout() override;
-		virtual void generateRegisters() override;
-
-	protected:
-		llvm::IntegerType* getDefaultType();
-		llvm::Value* getCurrentPc(cs_insn* i);
-		llvm::Value* getNextInsnAddress(cs_insn* i);
-		llvm::Value* getNextNextInsnAddress(cs_insn* i);
-
-		llvm::Value* loadRegister(
-			uint32_t r,
-			llvm::IRBuilder<>& irb);
-		llvm::Value* loadOp(
-			cs_tricore_op& op,
-			llvm::IRBuilder<>& irb,
-			llvm::Type* ty = nullptr);
-		llvm::Value* loadOpUnary(
-			cs_tricore* mi,
-			llvm::IRBuilder<>& irb);
-		std::pair<llvm::Value*, llvm::Value*> loadOpBinary(
-			cs_tricore* mi,
-			llvm::IRBuilder<>& irb,
-			eOpConv ct = eOpConv::NOTHING);
-
-	protected:
-		static std::map<
-			std::size_t,
-			void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, llvm::IRBuilder<>&)> _i2fm;
+    /**
+    * Override translate, for tricore2capstone
+    */
+    virtual Capstone2LlvmIrTranslator::TranslationResult translate(const std::vector<uint8_t>& bytes, retdec::utils::Address a, llvm::IRBuilder<>& irb, bool stopOnBranch = false);
 
 
-		// These are used to save lines needed to declare locale operands in
-		// each translation function.
-		// In C++17, we could use Structured Bindings:
-		// auto [ op0, op1 ] = loadOpBinary();
-		llvm::Value* op0 = nullptr;
-		llvm::Value* op1 = nullptr;
-		llvm::Value* op2 = nullptr;
-		llvm::Value* op3 = nullptr;
+    // Public pure virtual methods that must be implemented in concrete classes.
+public:
+    virtual bool isAllowedBasicMode(cs_mode m) override;
+    virtual bool isAllowedExtraMode(cs_mode m) override;
+    virtual void modifyBasicMode(cs_mode m) override;
+    virtual void modifyExtraMode(cs_mode m) override;
+    virtual uint32_t getArchByteSize() override;
+    virtual uint32_t getArchBitSize() override;
+    virtual std::string getRegisterName(uint32_t r) const override;
 
-		// TODO: This is a hack, sometimes we need cs_insn deep in helper
-		// methods like @c loadRegister() where it is hard to propagate it.
-		cs_insn* _insn = nullptr;
+    // Protected pure virtual methods that must be implemented in concrete classes.
+protected:
+    virtual void translateInstruction(cs_insn* i, llvm::IRBuilder<>& irb) override;
+    virtual void initializeArchSpecific() override;
+    virtual void initializeRegNameMap() override;
+    virtual void initializeRegTypeMap() override;
+    virtual void generateEnvironmentArchSpecific() override;
+    virtual void generateDataLayout() override;
+    virtual void generateRegisters() override;
 
-	protected:
-		void translateJ(cs_insn* i, llvm::IRBuilder<>& irb);
+protected:
+    static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, const std::bitset<64>&, llvm::IRBuilder<>&)> _i2fm;
+    void translateJ(cs_insn* i, const std::bitset<64>& b, llvm::IRBuilder<>& irb);
+    void translateConditionalJ(cs_insn* i, const std::bitset<64>& b, llvm::IRBuilder<>& irb);
+
+    void translateLd(cs_insn* i, const std::bitset<64>& b, llvm::IRBuilder<>& irb);
+
+    void translateNop(cs_insn* i, const std::bitset<64>& b, llvm::IRBuilder<>& irb);
+
+protected:
+    // These are used to save lines needed to declare locale operands in
+    // each translation function.
+    // In C++17, we could use Structured Bindings:
+    // auto [ op0, op1 ] = loadOpBinary();
+    llvm::Value* op0 = nullptr;
+    llvm::Value* op1 = nullptr;
+    llvm::Value* op2 = nullptr;
+    llvm::Value* op3 = nullptr;
+
+    // TODO: This is a hack, sometimes we need cs_insn deep in helper
+    // methods like @c loadRegister() where it is hard to propagate it.
+    cs_insn* _insn = nullptr;
+
+    //Helper funcs
+protected:
+    llvm::IntegerType* getDefaultType();
+    llvm::Value* getCurrentPc(cs_insn* i);
+    llvm::Value* getNextInsnAddress(cs_insn* i);
+    llvm::Value* getNextNextInsnAddress(cs_insn* i);
+
+    llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb);
+    llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty = nullptr);
+    llvm::Value* loadOpUnary(cs_tricore* mi, llvm::IRBuilder<>& irb);
+    std::pair<llvm::Value*, llvm::Value*> loadOpBinary(cs_tricore* mi, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::NOTHING);
+    llvm::Value* loadOpBinaryOp1(cs_tricore* mi, llvm::IRBuilder<>& irb, llvm::Type* ty = nullptr);
+    std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> loadOpTernary(cs_tricore* mi, llvm::IRBuilder<>& irb);
+
+    llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct);
+    llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC);
+
+    tricore_reg getRegDByNumber(unsigned n);
+    tricore_reg getRegAByNumber(unsigned n);
 };
 
+/**
+ * @src https://stackoverflow.com/questions/17857596/how-to-convert-a-range-subset-of-bits-in-a-c-bitset-to-a-number
+ */
+// drop bits outside the range [R, L) == [R, L]
+template<std::size_t R, std::size_t L, std::size_t N>
+std::bitset<N> bitRange(const std::bitset<N>& b)
+{
+    std::bitset<N> _b = b;
+    if (R > L - 1 || L - 1 >= N) {
+        assert(false);
+    }
+
+    _b <<= (N - L - 1);
+    _b >>= (N - L + R - 1); // shift to lsb
+
+    return _b;
+};
+
+template<std::uint16_t N>
+std::bitset<N> getBitSet(const uint8_t bytes[16])
+{
+    long unsigned int b = 0;
+    for (unsigned i = 0; i < N; i++) {
+        b |= bytes[i] << (i * 8);
+    }
+    std::bitset<N> r(b);
+    return r;
+};
 
 } // namespace capstone2llvmir
 } // namespace retdec
 
 #endif
+

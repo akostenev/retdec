@@ -15,6 +15,7 @@ typedef enum tricore_reg {
 	TRICORE_REG_AOF, //Advance Overflow
 	TRICORE_REG_SAOF, //Sticky Advance Overflow
 
+        TRICORE_REG_ZERO, //Zero Reg
 	TRICORE_REG_PC = 0xfe08, // PC [31:1] rw Program Counter, RES 0 - Reserved
 	TRICORE_REG_PSW = 0xfe04, //Program Status Word Register
 	TRICORE_REG_PCXI = 0xfe00, //Previous Context Information and Pointer Register
@@ -245,7 +246,11 @@ typedef enum tricore_op_type {
 // This is associated with MIPS_OP_MEM operand type above
 typedef struct tricore_op_mem {
 	tricore_reg base;	// base register
-	int64_t disp; 	// displacement/offset value
+	uint64_t disp; 	// displacement/offset value
+
+	tricore_op_mem(tricore_reg base, int64_t disp) :
+            base(base),
+            disp(disp) {};
 } tricore_op_mem;
 
 // Instruction operand
@@ -253,9 +258,26 @@ typedef struct cs_tricore_op {
 	tricore_op_type type;	// operand type
 	union {
 		tricore_reg reg;	// register value for REG operand
-		int64_t imm;		// immediate value for IMM operand
+		uint64_t imm;		// immediate value for IMM operand
 		tricore_op_mem mem;	// base/index/scale/disp value for MEM operand
 	};
+
+	cs_tricore_op() :
+		type(TRICORE_OP_INVALID),
+		imm(0) {};
+
+	cs_tricore_op(tricore_reg reg) :
+		type(TRICORE_OP_REG),
+		reg(reg) {};
+
+	cs_tricore_op(uint64_t imm) :
+		type(TRICORE_OP_IMM),
+		imm(imm) {};
+
+	cs_tricore_op(tricore_reg base, uint64_t disp) :
+		type(TRICORE_OP_MEM),
+		mem(tricore_op_mem(base, disp)) {};
+
 } cs_tricore_op;
 
 // Instruction structure
@@ -264,6 +286,13 @@ typedef struct cs_tricore {
 	// or 0 when instruction has no operand.
 	uint8_t op_count;
 	cs_tricore_op operands[8]; // operands for this instruction.
+
+	cs_tricore() : op_count(0) {};
+	void setOp(cs_tricore_op o, uint8_t i = 0) {
+		op_count = i + 1 > op_count ? i + 1 : op_count;
+		operands[i] = o;
+	};
+
 } cs_tricore;
 
 
@@ -274,11 +303,11 @@ typedef enum tricore_insn {
 	// _r := register
 	// _z := zero extend
 
-	TRICORE_INS_J_24 = 0x1D,
-	TRICORE_INS_J_18 = 0x3C,
-	TRICORE_INS_JA_24 = 0x9D,
-	TRICORE_INS_JEQ_15_C = 0xDF,
-	TRICORE_INS_JEQ_15_R = 0x5F,
+	TRICORE_INS_J_24 = 0x1D, //DONE
+	TRICORE_INS_J_8 = 0x3C, //DONE
+	TRICORE_INS_JA = 0x9D, //DONE
+	TRICORE_INS_JEQ_15_c = 0xDF, //DONE
+	TRICORE_INS_JEQ_15_r = 0x5F,
 	TRICORE_INS_JEQ_4_c = 0x1E,
 	TRICORE_INS_JEQ_4_c_PLUS_16 = 0x9E,
 	TRICORE_INS_JEQ_4_r = 0x3E,
@@ -301,7 +330,7 @@ typedef enum tricore_insn {
 	TRICORE_INS_JLT_U_c_z = 0xBF,
 	TRICORE_INS_JLT_U_r_z = 0x3F,
 	TRICORE_INS_JLTZ = 0x0E,
-	TRICORE_INS_JNE_c = 0xDF,
+	TRICORE_INS_JNE_c = TRICORE_INS_JEQ_15_c, //DONE
 	TRICORE_INS_JNE_r = 0x5F,
 	TRICORE_INS_JNE_16 = 0x5E,
 	TRICORE_INS_JNE_16_z = 0xDE,
@@ -324,6 +353,10 @@ typedef enum tricore_insn {
 	TRICORE_INS_JZA_16 = 0xBC,
 	TRICORE_INS_JZT = 0x6F,
 	TRICORE_INS_JZT_16 = 0x2E,
+
+	TRICORE_INS_LD_HD = 0x8C, //DONE
+
+        TRICORE_INS_NOP = 0x00
 
 } tricore_insn;
 

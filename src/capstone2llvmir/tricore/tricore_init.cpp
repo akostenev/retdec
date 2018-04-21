@@ -184,12 +184,20 @@ void Capstone2LlvmIrTranslatorTricore::initializeArchSpecific()
 
 std::map<
 	std::size_t,
-	void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, llvm::IRBuilder<>&)>
+	void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, const std::bitset<64>& b, llvm::IRBuilder<>&)>
 	Capstone2LlvmIrTranslatorTricore::_i2fm =
 	{
-		{TRICORE_INS_INVALID, nullptr},
+// 		{TRICORE_INS_INVALID, nullptr}, // Same as TRICORE_INS_NOP
 
 		{TRICORE_INS_J_24, &Capstone2LlvmIrTranslatorTricore::translateJ},
+		{TRICORE_INS_J_8, &Capstone2LlvmIrTranslatorTricore::translateJ},
+		{TRICORE_INS_JA, &Capstone2LlvmIrTranslatorTricore::translateJ},
+		{TRICORE_INS_JEQ_15_c, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
+
+		{TRICORE_INS_LD_HD, &Capstone2LlvmIrTranslatorTricore::translateLd},
+
+                {TRICORE_INS_NOP, &Capstone2LlvmIrTranslatorTricore::translateNop}
+
 	};
 
 } // namespace capstone2llvmir
