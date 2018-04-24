@@ -184,7 +184,7 @@ void Capstone2LlvmIrTranslatorTricore::initializeArchSpecific()
 
 std::map<
 	std::size_t,
-	void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, const std::bitset<64>& b, llvm::IRBuilder<>&)>
+	void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, llvm::IRBuilder<>&)>
 	Capstone2LlvmIrTranslatorTricore::_i2fm =
 	{
 // 		{TRICORE_INS_INVALID, nullptr}, // Same as TRICORE_INS_NOP

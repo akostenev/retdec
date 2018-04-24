@@ -57,9 +57,8 @@ void Capstone2LlvmIrTranslatorTricore::translateInstruction(cs_insn* i, llvm::IR
 
     auto fIt = _i2fm.find(i->id);
     if (fIt != _i2fm.end() && fIt->second != nullptr) {
-        std::bitset<64> b = i->size == 4 ? i->bytes[3] << 24 | i->bytes[2] << 16 | i->bytes[1] << 8 | i->bytes[0] : i->bytes[1] << 8 | i->bytes[0];
         auto f = fIt->second;
-        (this->*f)(i, b, irb);
+        (this->*f)(i, irb);
     } else {
         std::cout << "Translation of unhandled instruction: " << i->id << std::endl;
 
@@ -412,6 +411,121 @@ tricore_reg Capstone2LlvmIrTranslatorTricore::getRegAByNumber(unsigned int n) {
         return tricore_reg(0xFF80 + n*4);
 }
 
-
 } // namespace capstone2llvmir
 } // namespace retdec
+
+//////////////////////
+// Capstone2Tricore //
+//////////////////////
+
+cs_tricore::cs_tricore(cs_insn* i) {
+    std::bitset<64> b = i->size == 4 ? i->bytes[3] << 24 | i->bytes[2] << 16 | i->bytes[1] << 8 | i->bytes[0] : i->bytes[1] << 8 | i->bytes[0];
+
+    switch (i->id) {
+        case 0x5C:
+        case 0x3C:
+        case 0x6e:
+        case 0xee:
+            format = TRICORE_OF_SB;
+            op_count = 1;
+            operands[0] = cs_tricore_op(bitRange<8, 15>(b).to_ulong());
+            break;
+
+        case 0xCC: //A[15] = M(A[b] + zero_ext(4 * off4), word);
+        case 0x0C: //D[15] = zero_ext(M(A[b] + zero_ext(off4), byte));
+        case 0x8C: //D[15] = sign_ext(M(A[b] + zero_ext(2 * off4), half-word));
+        case 0x4C: //D[15] = M(A[b] + zero_ext(4 * off4), word);
+        case 0xEC: //M(A[b] + zero_ext(4 * off4), word) = A[15];
+        case 0x2C: //M(A[b] + zero_ext(off4), byte) = D[15][7:0];
+        case 0xAC: //M(A[b] + zero_ext(2 * off4), half-word) = D[15][15:0];
+        case 0x6C: { //M(A[b] + zero_ext(4 * off4), word) = D[15];
+            format = TRICORE_OF_SRO;
+            op_count = 2;
+
+            uint8_t off4 = bitRange<8, 11>(b).to_ulong();
+            tricore_reg ab = tricore_reg(TRICORE_REG_A_0 + bitRange<12, 15>(b).to_ulong() * 4);
+
+            switch (i->id) {
+                case 0xCC:
+                    operands[0] = cs_tricore_op(TRICORE_REG_A_15);
+                    operands[1] = cs_tricore_op(ab, off4 * 4);
+                    break;
+                case 0x0C:
+                    operands[0] = cs_tricore_op(TRICORE_REG_D_15);
+                    operands[1] = cs_tricore_op(ab, off4);
+                    break;
+                case 0x8C:
+                    operands[0] = cs_tricore_op(TRICORE_REG_D_15);
+                    operands[1] = cs_tricore_op(ab, off4 * 2);
+                    break;
+                case 0x4C:
+                    operands[0] = cs_tricore_op(TRICORE_REG_D_15);
+                    operands[1] = cs_tricore_op(ab, off4 * 4);
+                    break;
+                case 0xEC:
+                    operands[0] = cs_tricore_op(ab, off4 * 4);
+                    operands[1] = cs_tricore_op(TRICORE_REG_A_15);
+                    break;
+                case 0x2C:
+                    operands[0] = cs_tricore_op(ab, off4);
+                    operands[1] = cs_tricore_op(TRICORE_REG_D_15);
+                    break;
+                case 0xAC:
+                    operands[0] = cs_tricore_op(ab, off4 * 2);
+                    operands[1] = cs_tricore_op(TRICORE_REG_D_15);
+                    break;
+                case 0x6C:
+                    operands[0] = cs_tricore_op(ab, off4 * 4);
+                    operands[1] = cs_tricore_op(TRICORE_REG_D_15);
+                    break;
+                default:
+                    assert(false);
+            };
+            break;
+        }
+        case 0x6D:
+        case 0xED:
+        case 0x61:
+        case 0xE1:
+        case 0x1D:
+        case 0x9D:
+        case 0x5D:
+        case 0xDD:
+            format = TRICORE_OF_B;
+            op_count = 1;
+            operands[0] = cs_tricore_op(((bitRange<16, 23>(b) << 16) | bitRange<0, 15>(b)).to_ulong());
+            break;
+
+        case 0xDF:
+        case 0xFF:
+        case 0xBF:
+        case 0x9F:
+            format = TRICORE_OF_BRC;
+            op_count = 4;
+            operands[0] = cs_tricore_op(bitRange<8, 11>(b).to_ulong());
+            operands[0] = cs_tricore_op(tricore_reg(0xFF00 + operands[0].imm * 4)); //s1 is always D[n] : 0xFF00 //TODO verify
+            operands[1] = cs_tricore_op(bitRange<12, 15>(b).to_ulong());
+            operands[2] = cs_tricore_op(bitRange<16, 29>(b).to_ulong());
+            operands[3] = cs_tricore_op(bitRange<30, 31>(b).to_ulong());
+            break;
+
+        case 0x85:
+        case 0x05:
+        case 0xE5:
+        case 0x15:
+        case 0xA5:
+        case 0x65:
+        case 0x25:
+        case 0xC5:
+        case 0x45:
+            format = TRICORE_OF_ABS;
+            op_count = 3;
+             operands[0] = cs_tricore_op(bitRange<8, 11>(b).to_ulong());
+             operands[1] = cs_tricore_op(((bitRange<12, 15>(b) << 14) | (bitRange<22, 25>(b) << 10) | (bitRange<28, 31>(b) << 6) | bitRange<16, 21>(b)).to_ulong());
+             operands[2] = cs_tricore_op(bitRange<26, 27>(b).to_ulong());
+            break;
+
+        default:
+            assert(false);
+    };
+}
