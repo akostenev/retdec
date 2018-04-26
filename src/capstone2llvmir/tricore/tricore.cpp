@@ -418,17 +418,17 @@ tricore_reg Capstone2LlvmIrTranslatorTricore::getRegAByNumber(unsigned int n) {
 // Capstone2Tricore //
 //////////////////////
 
-cs_tricore::cs_tricore(cs_insn* i) {
+cs_tricore::cs_tricore(cs_insn* i) : op2(0), brnN(0) {
     std::bitset<64> b = i->size == 4 ? i->bytes[3] << 24 | i->bytes[2] << 16 | i->bytes[1] << 8 | i->bytes[0] : i->bytes[1] << 8 | i->bytes[0];
 
     switch (i->id) {
         case 0x5C:
-        case 0x3C:
+        case TRICORE_INS_J_8: // PC = PC + sign_ext(disp8) * 2;
         case 0x6e:
         case 0xee:
             format = TRICORE_OF_SB;
             op_count = 1;
-            operands[0] = cs_tricore_op(bitRange<8, 15>(b).to_ulong());
+            operands[0] = cs_tricore_op(bitRange<8, 15>(b).to_ulong() * 2);
             break;
 
         case 0xCC: //A[15] = M(A[b] + zero_ext(4 * off4), word);
@@ -483,48 +483,145 @@ cs_tricore::cs_tricore(cs_insn* i) {
             };
             break;
         }
-        case 0x6D:
-        case 0xED:
-        case 0x61:
-        case 0xE1:
-        case 0x1D:
-        case 0x9D:
-        case 0x5D:
+//         case 0x6D:
+//         case 0xED:
+//         case 0x61: //ret_addr = PC + 4; EA = A[10] - 4; M(EA,word) = A[11]; PC = PC + sign_ext(2 * disp24); A[11] = ret_addr[31:0]; A[10] = EA[31:0];
+//         case 0xE1: //ret_addr = PC + 4; EA = A[10] - 4; M(EA,word) = A[11]; PC = {disp24[23:20], 7'b0, disp24[19:0], 1'b0}; A[11] = ret_addr[31:0]; A[10] = EA[31:0]
+        case TRICORE_INS_J_24: //PC = PC + sign_ext(disp24) * 2;
+        case TRICORE_INS_JA: //PC = {disp24[23:20], 7’b0000000, disp24[19:0], 1’b0};
+        case TRICORE_INS_JL: //A[11] = PC + 4; PC = PC + sign_ext(disp24) * 2;
         case 0xDD:
+        {
             format = TRICORE_OF_B;
             op_count = 1;
-            operands[0] = cs_tricore_op(((bitRange<16, 23>(b) << 16) | bitRange<0, 15>(b)).to_ulong());
-            break;
 
-        case 0xDF:
-        case 0xFF:
-        case 0xBF:
-        case 0x9F:
+            std::bitset<64> disp24 = ((bitRange<8, 15>(b) << 16) | (bitRange<16, 31>(b))).to_ulong();
+            std::bitset<64> exDisp24 = (bitRange<20, 23>(disp24) << 28) | (bitRange<0, 19>(disp24) << 1);
+
+            switch (i->id) {
+                case TRICORE_INS_J_24:
+                case TRICORE_INS_JL:
+                    operands[0] = disp24.to_ulong() * 2;
+                    break;
+                case TRICORE_INS_JA:
+                    operands[0] = exDisp24.to_ulong() * 2;
+                    break;
+                default:
+                    assert(false);
+            }
+
+            operands[0] = cs_tricore_op(((bitRange<16, 23>(b) << 16) | bitRange<0, 15>(b)).to_ulong() * 2);
+            break;
+        }
+        case TRICORE_INS_JEQ_15_c:  //if (D[a] == sign_ext(const4)) then PC = PC + sign_ext(disp15) * 2;
+                                    //if (D[a] != sign_ext(const4)) then PC = PC + sign_ext(disp15) * 2;
+//         case 0xFF:
+//         case 0xBF:
+//         case 0x9F:
             format = TRICORE_OF_BRC;
-            op_count = 4;
-            operands[0] = cs_tricore_op(bitRange<8, 11>(b).to_ulong());
-            operands[0] = cs_tricore_op(tricore_reg(0xFF00 + operands[0].imm * 4)); //s1 is always D[n] : 0xFF00 //TODO verify
-            operands[1] = cs_tricore_op(bitRange<12, 15>(b).to_ulong());
-            operands[2] = cs_tricore_op(bitRange<16, 29>(b).to_ulong());
-            operands[3] = cs_tricore_op(bitRange<30, 31>(b).to_ulong());
-            break;
-
-        case 0x85:
-        case 0x05:
-        case 0xE5:
-        case 0x15:
-        case 0xA5:
-        case 0x65:
-        case 0x25:
-        case 0xC5:
-        case 0x45:
-            format = TRICORE_OF_ABS;
             op_count = 3;
-             operands[0] = cs_tricore_op(bitRange<8, 11>(b).to_ulong());
-             operands[1] = cs_tricore_op(((bitRange<12, 15>(b) << 14) | (bitRange<22, 25>(b) << 10) | (bitRange<28, 31>(b) << 6) | bitRange<16, 21>(b)).to_ulong());
-             operands[2] = cs_tricore_op(bitRange<26, 27>(b).to_ulong());
+
+            op2 = bitRange<30, 31>(b).to_ulong();
+            operands[0] = cs_tricore_op(tricore_reg(TRICORE_REG_D_0 + bitRange<8, 11>(b).to_ulong() * 4)); // D[A]
+            operands[1] = cs_tricore_op(bitRange<12, 15>(b).to_ulong()); // const4
+            operands[2] = cs_tricore_op(bitRange<16, 29>(b).to_ulong() * 2); // sign_ext(disp15) * 2
             break;
 
+        case 0x85: // EA = {off18[17:14], 14b'0, off18[13:0]};  A[a] = M(EA, word);
+        case 0x05: // EA = {off18[17:14], 14b'0, off18[13:0]};  D[a] = sign_ext(M(EA, byte));
+//         case 0xE5: // EA = {off18[17:14], 14b'0, off18[13:0]};  M(EA, word) = (M(EA, word) & ~E[a][63:32]) | (E[a][31:0] & E[a][63:32]);
+//         case 0x15: // EA = {off18[17:14], 14b'0, off18[13:0]};  {dummy, dummy, A[10:11], D[8:11], A[12:15], D[12:15]} = M(EA, 16-word);
+        case 0xA5: // EA = {off18[17:14], 14b'0, off18[13:0]};  M(EA, word) = A[a];
+        case 0x65: // EA = {off18[17:14], 14b'0, off18[13:0]};  M(EA, halfword) = D[a][31:16];
+//         case 0x25: // EA = {off18[17:14], 14b'0, off18[13:0]};  M(EA, byte) = D[a][7:0];
+        case 0xC5: // EA = {off18[17:14], 14b'0, off18[13:0]};  A[a] = EA[31:0];
+//         case 0x45: // EA = {off18[17:14], 14b'0, off18[13:0]};  D[a] = {M(EA, halfword), 16’h0000};
+        {
+            format = TRICORE_OF_ABS;
+            op_count = 2;
+
+            uint8_t s1_d = bitRange<8, 11>(b).to_ulong();
+            std::bitset<64> off18 = (bitRange<12, 15>(b) << 14) | (bitRange<22, 25>(b) << 10) | (bitRange<28, 31>(b) << 6) | (bitRange<16, 21>(b));
+            uint32_t ea = ((bitRange<14, 17>(off18) << 28) | (bitRange<0, 13>(b))).to_ulong();
+
+            switch (i->id) {
+                case 0x85:
+                    operands[0] = cs_tricore_op(tricore_reg(TRICORE_REG_A_0 + s1_d * 4)); //A[a]
+                    operands[1] = cs_tricore_op(TRICORE_REG_INVALID, ea);
+                    break;
+                case 0xC5:
+                    operands[0] = cs_tricore_op(tricore_reg(TRICORE_REG_A_0 + s1_d * 4)); //A[a]
+                    operands[1] = cs_tricore_op(ea);
+                    break;
+                case 0x05:
+                    operands[0] = cs_tricore_op(tricore_reg(TRICORE_REG_D_0 + s1_d * 4)); //D[a]
+                    operands[1] = cs_tricore_op(TRICORE_REG_INVALID, ea);
+                    break;
+                case 0xA5:
+                    operands[0] = cs_tricore_op(TRICORE_REG_INVALID, ea);
+                    operands[1] = cs_tricore_op(tricore_reg(TRICORE_REG_A_0 + s1_d * 4)); //A[a]
+                    break;
+                case 0x65:
+                    operands[0] = cs_tricore_op(TRICORE_REG_INVALID, ea);
+                    operands[1] = cs_tricore_op(tricore_reg(TRICORE_REG_D_0 + s1_d * 4)); //D[a]
+                    break;
+                default: //M(EA)
+                    assert(false);
+            }
+            break;
+        }
+
+        case TRICORE_INS_JNZT: //if (D[a][n]) then PC = PC + sign_ext(disp15) * 2;
+                               //if (!D[a][n]) then PC = PC + sign_ext(disp15) * 2;
+            format = TRICORE_OF_BRN;
+            brnN = (bitRange<6, 7>(b) << 3 | bitRange<12, 15>(b)).to_ulong();
+            op2 = bitRange<30, 31>(b).to_ulong();
+
+            operands[0] = cs_tricore_op(tricore_reg(TRICORE_REG_D_0 + bitRange<8, 11>(b).to_ulong() * 4)); //D[a]
+            operands[1] = cs_tricore_op(bitRange<16, 29>(b).to_ulong() * 2); // sign_ext
+            break;
+
+        case TRICORE_INS_MOVH: // D[c] = {const16, 16’h0000};
+        case TRICORE_INS_MOVH_A: // A[c] = {const16, 16’h0000};
+        case TRICORE_INS_MTCR: //CR[const16] = D[a];
+        {
+            format = TRICORE_OF_RLC;
+            op_count = 2;
+            std::bitset<64> const16 = (bitRange<12, 27>(b));
+            std::bitset<64> c = bitRange<28, 31>(b);
+
+            switch (i->id) {
+                case TRICORE_INS_MOVH:
+                    operands[0] = cs_tricore_op(tricore_reg(TRICORE_REG_D_0 + c.to_ulong() * 4)); //D[c]
+                    operands[1] = cs_tricore_op((const16 << 16).to_ulong()); // const16
+                    break;
+                case TRICORE_INS_MOVH_A:
+                    operands[0] = cs_tricore_op(tricore_reg(TRICORE_REG_A_0 + c.to_ulong() * 4)); //A[c]
+                    break;
+                default:
+                    assert(false);
+            }
+            operands[1] = cs_tricore_op((const16 << 16).to_ulong()); // const16
+
+            break;
+        }
+        case TRICORE_INS_ADDI: //result = D[a] + sign_ext(const16); D[c] = result[31:0];
+            format = TRICORE_OF_RLC;
+            op_count = 3;
+
+            operands[0] = cs_tricore_op(tricore_reg(TRICORE_REG_D_0 + bitRange<28, 31>(b).to_ulong() * 4)); // D[c]
+            operands[1] = cs_tricore_op(tricore_reg(TRICORE_REG_D_0 + bitRange<8, 11>(b).to_ulong() * 4)); // D[a]
+            operands[2] = cs_tricore_op(bitRange<12, 27>(b).to_ulong()); // const16
+
+            break;
+        case TRICORE_INS_LEA: // EA = A[b] + sign_ext(off16); A[a] = EA[31:0];
+            format = TRICORE_OF_BOL;
+            op_count = 3;
+            operands[0] = cs_tricore_op(tricore_reg(TRICORE_REG_A_0 + bitRange<8, 11>(b).to_ulong() * 4)); // A[a]
+            operands[1] = cs_tricore_op(tricore_reg(TRICORE_REG_A_0 + bitRange<12, 15>(b).to_ulong() * 4)); // A[b]
+            operands[2] = cs_tricore_op(((bitRange<22, 27>(b) << 10) | (bitRange<28, 31>(b) << 6) | (bitRange<16, 21>(b))).to_ulong()); //off16
+
+            break;
         default:
             assert(false);
     };

@@ -337,15 +337,21 @@ typedef struct cs_tricore {
     uint8_t op_count;
     cs_tricore_op operands[8]; // operands for this instruction.
 
+    uint8_t op2; //op2 for many op formats like BRN, default 0
+    uint8_t brnN; //bit n for BRN, 0 if !BRN format
+
     cs_tricore(cs_insn* i);
 } cs_tricore;
 
 typedef enum tricore_insn {
     TRICORE_INS_INVALID = 0,
 
+    // _A := address
     // _c := constant
     // _r := register
     // _z := zero extend
+
+    TRICORE_INS_ADDI = 0x1B,
 
     TRICORE_INS_J_24 = 0x1D, //DONE
     TRICORE_INS_J_8 = 0x3C, //DONE
@@ -400,6 +406,13 @@ typedef enum tricore_insn {
 
     TRICORE_INS_LD_A = 0x85,
     TRICORE_INS_LD_HD = 0x8C, //DONE
+
+    TRICORE_INS_MOVH = 0x7B,
+    TRICORE_INS_MOVH_A = 0x91,
+
+    TRICORE_INS_MTCR = 0xCD,
+
+    TRICORE_INS_LEA = 0xD9,
 
     TRICORE_INS_NOP = 0x00
 

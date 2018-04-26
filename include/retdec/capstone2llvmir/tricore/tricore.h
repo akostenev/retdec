@@ -84,10 +84,15 @@ protected:
 
 protected:
     static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, llvm::IRBuilder<>&)> _i2fm;
+    void translateAdd(cs_insn* i, llvm::IRBuilder<>& irb);
+
     void translateJ(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateJal(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateConditionalJ(cs_insn* i, llvm::IRBuilder<>& irb);
 
-    void translateLd(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateLea(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateLoad(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateLdAbs(cs_insn* i, llvm::IRBuilder<>& irb);
 
     void translateNop(cs_insn* i, llvm::IRBuilder<>& irb);
 };
