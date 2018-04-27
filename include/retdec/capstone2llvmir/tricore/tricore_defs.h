@@ -10,22 +10,28 @@
  */
 typedef enum tricore_reg {
     TRICORE_REG_INVALID = 0,
+    TRICORE_REG_ZERO, //Zero Reg
 
-    //Flags in PSW
+    //PSW and flags in PSW
+    TRICORE_REG_PSW = 0xfe04, //Program Status Word Register
     TRICORE_REG_CF, //Carry
     TRICORE_REG_OF, //Overflow
     TRICORE_REG_SOF, //Sticky overflow
     TRICORE_REG_AOF, //Advance Overflow
     TRICORE_REG_SAOF, //Sticky Advance Overflow
 
-        TRICORE_REG_ZERO, //Zero Reg
+    //(CSFR)
+    TRICORE_REG_PCXI_PCX = 0xfe00, // Previous Context Information and Pointer Register
     TRICORE_REG_PC = 0xfe08, // PC [31:1] rw Program Counter, RES 0 - Reserved
-    TRICORE_REG_PSW = 0xfe04, //Program Status Word Register
-    TRICORE_REG_PCXI = 0xfe00, //Previous Context Information and Pointer Register
-    TRICORE_REG_ISP = 0xfe28, //Interrupt Stack Pointer
     TRICORE_REG_SYSCON = 0xfe14, //System Control Register
     TRICORE_REG_CPU_ID = 0xfe18, //CPU Identification Register
-    TRICORE_REG_COMPAT = 0x9f00, //Compatibility Mode Register
+    TRICORE_REG_BIV = 0xfe20, //Base Address of Interrupt Vector Table Register.
+    TRICORE_REG_BTV = 0xFE24, //Base Address of Trap Vector Table Register.
+    TRICORE_REG_ISP = 0xFE28, //Interrupt Stack Pointer Register.
+    TRICORE_REG_ICR = 0xFE2C, //ICU Interrupt Control Register.
+    TRICORE_REG_FCX = 0xFE38, //Free Context List Head Pointer Register.
+    TRICORE_REG_LCX = 0xFE3C, //Free Context List Limit Pointer Register.
+    TRICORE_REG_COMPAT = 0x9400, //Compatibility Mode Register.
 
     //> General purpose registers
     //16 Data registers (DGPRs), D[0] to D[15]. 32 bit
@@ -94,20 +100,7 @@ typedef enum tricore_reg {
     TRICORE_REG_BMACON = 0x9004, //BIST Mode Access Control
     TRICORE_REG_SMACON = 0x900c, //SIST Mode Access Control Register
 
-    //Context Management Registers
-    TRICORE_REG_FCX = 0xfe38, //Free CSA List Head Pointer
-    TRICORE_REG_PCX = 0xfe00, //Previous Context Pointer Register
-    TRICORE_REG_LCX = 0xfe3c, //Free CSA List Limit Pointer Register
-
-    //Interrupt System
-    ////Service Request Control Register (SRC)
-
-    //Interrupt Control Registers
-    TRICORE_REG_ICR = 0xfe2c, //ICU Interrupt Control Register
-    TRICORE_REG_BIV = 0xfe20, //Base Interrupt Vector Table Pointer
-
     //Trap Control Registers
-    TRICORE_REG_BTV = 0xfe24, //Base Trap Vector Table Pointer
     TRICORE_REG_PSTR = 0x9200, //Program Synchronous Error Trap Register
     TRICORE_REG_DSTR = 0x9010, //Data Synchronous Error Trap Register
     TRICORE_REG_DATR = 0x9018, //Data Asynchronous Error Trap Register
@@ -345,6 +338,8 @@ typedef struct cs_tricore {
 
 typedef enum tricore_insn {
     TRICORE_INS_INVALID = 0,
+    TRICORE_INS_NOP = 0x00,
+    TRICORE_INS_ISYNC = 0x0D, // TRICORE_INS_NOP
 
     // _A := address
     // _c := constant
@@ -352,11 +347,17 @@ typedef enum tricore_insn {
     // _z := zero extend
 
     TRICORE_INS_ADDI = 0x1B,
+    TRICORE_INS_ADDD = 0xC2,
 
-    TRICORE_INS_J_24 = 0x1D, //DONE
-    TRICORE_INS_J_8 = 0x3C, //DONE
-    TRICORE_INS_JA = 0x9D, //DONE
-    TRICORE_INS_JEQ_15_c = 0xDF, //DONE
+    TRICORE_INS_BIT_OPERATIONS1 = 0x8F,
+    TRICORE_INS_BIT_OPERATIONS2 = 0x0F,
+
+    TRICORE_INS_CALL_24 = 0x6D,
+
+    TRICORE_INS_J_24 = 0x1D,
+    TRICORE_INS_J_8 = 0x3C,
+    TRICORE_INS_JA = 0x9D,
+    TRICORE_INS_JEQ_15_c = 0xDF,
     TRICORE_INS_JEQ_15_r = 0x5F,
     TRICORE_INS_JEQ_4_c = 0x1E,
     TRICORE_INS_JEQ_4_c_PLUS_16 = 0x9E,
@@ -370,7 +371,7 @@ typedef enum tricore_insn {
     TRICORE_INS_JGEZ = 0xCE,
     TRICORE_INS_JGTZ = 0x4E,
     TRICORE_INS_JI_32 = 0x2D,
-    TRICORE_INS_JI_16 = 0xDC,
+    TRICORE_INS_JIA = 0xDC,
     TRICORE_INS_JL = 0x5D,
     TRICORE_INS_JLA = 0xDD,
     TRICORE_INS_JLEZ = 0x8E,
@@ -380,7 +381,7 @@ typedef enum tricore_insn {
     TRICORE_INS_JLT_U_c_z = 0xBF,
     TRICORE_INS_JLT_U_r_z = 0x3F,
     TRICORE_INS_JLTZ = 0x0E,
-    TRICORE_INS_JNE_c = TRICORE_INS_JEQ_15_c, //DONE
+    TRICORE_INS_JNE_c = TRICORE_INS_JEQ_15_c,
     TRICORE_INS_JNE_r = 0x5F,
     TRICORE_INS_JNE_16 = 0x5E,
     TRICORE_INS_JNE_16_z = 0xDE,
@@ -391,30 +392,44 @@ typedef enum tricore_insn {
     TRICORE_INS_JNED_r = 0x1F,
     TRICORE_INS_JNEI_c = 0x9F,
     TRICORE_INS_JNEI_r = 0x1F,
-    TRICORE_INS_JNZ_c = 0xEE,
+    TRICORE_INS_JNZD = 0xEE,
     TRICORE_INS_JNZ_r = 0xF6,
     TRICORE_INS_JNZA = 0xBD,
     TRICORE_INS_JNZA_16 = 0x7C,
     TRICORE_INS_JNZT = 0x6F,
     TRICORE_INS_JNZT_16 = 0xAE,
     TRICORE_INS_JZ_c = 0x6E,
-    TRICORE_INS_JZ_r = 0x76,
+    TRICORE_INS_JZD = 0x76,
     TRICORE_INS_JZA = 0xBD,
     TRICORE_INS_JZA_16 = 0xBC,
     TRICORE_INS_JZT = 0x6F,
     TRICORE_INS_JZT_16 = 0x2E,
 
     TRICORE_INS_LD_A = 0x85,
-    TRICORE_INS_LD_HD = 0x8C, //DONE
+    TRICORE_INS_LD_HD = 0x8C,
+    TRICORE_INS_LD_BUD = 0x0C,
 
+    TRICORE_INS_MOVAD = 0x60,
+    TRICORE_INS_MOVDA = 0x80,
+    TRICORE_INS_MOVD_A = 0x82,
+    TRICORE_INS_MOVD_C16 = 0x3B,
     TRICORE_INS_MOVH = 0x7B,
     TRICORE_INS_MOVH_A = 0x91,
+    TRICORE_INS_MOVU = 0xBB,
 
+    TRICORE_INS_SHAD = 0x86,
+
+    TRICORE_INS_ST_A = 0xA5,
+
+    TRICORE_INS_SUBD = 0xA2,
+
+    TRICORE_INS_MFCR = 0x4D,
     TRICORE_INS_MTCR = 0xCD,
 
     TRICORE_INS_LEA = 0xD9,
 
-    TRICORE_INS_NOP = 0x00
+    TRICORE_INS_ORD = 0xA6,
+    TRICORE_INS_ANDD = 0x26,
 
 } tricore_insn;
 

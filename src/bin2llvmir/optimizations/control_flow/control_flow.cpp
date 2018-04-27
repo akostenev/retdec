@@ -1439,7 +1439,10 @@ llvm::GlobalVariable* ControlFlow::getReturnObject()
 	{
 		ret = _config->getLlvmRegister("r0");
 	}
-
+	else if (_config->getConfig().architecture.isTricore())
+        {
+                ret = _config->getLlvmRegister("a11");
+        }
 	assert(ret);
 	return ret;
 }

@@ -75,8 +75,9 @@ protected:
     std::pair<llvm::Value*, llvm::Value*> loadOpBinary(cs_tricore* mi, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::NOTHING);
     llvm::Value* loadOpBinaryOp1(cs_tricore* mi, llvm::IRBuilder<>& irb, llvm::Type* ty = nullptr);
     std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> loadOpTernary(cs_tricore* mi, llvm::IRBuilder<>& irb);
+    std::pair<llvm::Value*, llvm::Value*> loadOp1Op2(cs_tricore* mi, llvm::IRBuilder<>& irb, eOpConv ct);
 
-    llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct);
+    llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC);
     llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC);
 
     tricore_reg getRegDByNumber(unsigned n);
@@ -86,6 +87,10 @@ protected:
     static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, llvm::IRBuilder<>&)> _i2fm;
     void translateAdd(cs_insn* i, llvm::IRBuilder<>& irb);
 
+    void translateBitOperations1(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateBitOperations2(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateBitOperationsD(cs_insn* i, llvm::IRBuilder<>& irb);
+
     void translateJ(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateJal(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateConditionalJ(cs_insn* i, llvm::IRBuilder<>& irb);
@@ -93,6 +98,12 @@ protected:
     void translateLea(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateLoad(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateLdAbs(cs_insn* i, llvm::IRBuilder<>& irb);
+
+    void translateShift(cs_insn* i, llvm::IRBuilder<>& irb);
+
+    void translateStore(cs_insn* i, llvm::IRBuilder<>& irb);
+
+    void translateSub(cs_insn* i, llvm::IRBuilder<>& irb);
 
     void translateNop(cs_insn* i, llvm::IRBuilder<>& irb);
 };

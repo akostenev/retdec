@@ -17,12 +17,16 @@ void Capstone2LlvmIrTranslatorTricore::initializeRegNameMap()
 
     std::map<uint32_t, std::string> r2n =
     {
+        {TRICORE_REG_PCXI_PCX, "pcxi_pcx"},
         {TRICORE_REG_PC, "pc"},
-        {TRICORE_REG_PSW, "psw"},
-        {TRICORE_REG_PCXI, "pcxi"},
-        {TRICORE_REG_ISP, "isp"},
         {TRICORE_REG_SYSCON, "syscon"},
-        {TRICORE_REG_CPU_ID, "id"},
+        {TRICORE_REG_CPU_ID, "cpuid"},
+        {TRICORE_REG_BIV, "biv"},
+        {TRICORE_REG_BTV, "btv"},
+        {TRICORE_REG_ISP, "isp"},
+        {TRICORE_REG_ICR, "icr"},
+        {TRICORE_REG_FCX, "fcx"},
+        {TRICORE_REG_LCX, "lcx"},
         {TRICORE_REG_COMPAT, "compat"},
 
         {TRICORE_REG_D_0, "d0"},
@@ -101,12 +105,16 @@ void Capstone2LlvmIrTranslatorTricore::initializeRegTypeMap()
 
     std::map<uint32_t, llvm::Type*> r2t =
     {
+        {TRICORE_REG_PCXI_PCX, i32},
         {TRICORE_REG_PC, i32},
-        {TRICORE_REG_PSW, i32},
-        {TRICORE_REG_PCXI, i32},
-        {TRICORE_REG_ISP, i32},
         {TRICORE_REG_SYSCON, i32},
         {TRICORE_REG_CPU_ID, i32},
+        {TRICORE_REG_BIV, i32},
+        {TRICORE_REG_BTV, i32},
+        {TRICORE_REG_ISP, i32},
+        {TRICORE_REG_ICR, i32},
+        {TRICORE_REG_FCX, i32},
+        {TRICORE_REG_LCX, i32},
         {TRICORE_REG_COMPAT, i32},
 
         {TRICORE_REG_D_0, i32},
@@ -188,24 +196,52 @@ std::map<
     Capstone2LlvmIrTranslatorTricore::_i2fm =
     {
 //         {TRICORE_INS_INVALID, nullptr}, // Same as TRICORE_INS_NOP
+        {TRICORE_INS_NOP, &Capstone2LlvmIrTranslatorTricore::translateNop},
+        {TRICORE_INS_ISYNC, &Capstone2LlvmIrTranslatorTricore::translateNop},
 
         {TRICORE_INS_ADDI, &Capstone2LlvmIrTranslatorTricore::translateAdd},
+        {TRICORE_INS_ADDD, &Capstone2LlvmIrTranslatorTricore::translateAdd},
+
+        {TRICORE_INS_BIT_OPERATIONS1, &Capstone2LlvmIrTranslatorTricore::translateBitOperations1},
+        {TRICORE_INS_BIT_OPERATIONS2, &Capstone2LlvmIrTranslatorTricore::translateBitOperations2},
+
+        {TRICORE_INS_CALL_24, &Capstone2LlvmIrTranslatorTricore::translateNop}, //TODO
 
         {TRICORE_INS_J_24, &Capstone2LlvmIrTranslatorTricore::translateJ},
         {TRICORE_INS_J_8, &Capstone2LlvmIrTranslatorTricore::translateJ},
         {TRICORE_INS_JA, &Capstone2LlvmIrTranslatorTricore::translateJ},
+        {TRICORE_INS_JIA, &Capstone2LlvmIrTranslatorTricore::translateJ},
         {TRICORE_INS_JL, &Capstone2LlvmIrTranslatorTricore::translateJal},
         {TRICORE_INS_JEQ_15_c, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
+        {TRICORE_INS_JNZD, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JNZT, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
+        {TRICORE_INS_JZD, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
 
         {TRICORE_INS_LEA, &Capstone2LlvmIrTranslatorTricore::translateLea},
         {TRICORE_INS_LD_A, &Capstone2LlvmIrTranslatorTricore::translateLdAbs},
+
+        {TRICORE_INS_LD_BUD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+
         {TRICORE_INS_LD_HD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
 
+        {TRICORE_INS_MFCR, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_MTCR, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_MOVAD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_MOVDA, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_MOVD_A, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_MOVD_C16, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVH, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVH_A, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_MOVU, &Capstone2LlvmIrTranslatorTricore::translateLoad},
 
-        {TRICORE_INS_NOP, &Capstone2LlvmIrTranslatorTricore::translateNop}
+        {TRICORE_INS_SHAD, &Capstone2LlvmIrTranslatorTricore::translateShift},
+
+        {TRICORE_INS_ST_A, &Capstone2LlvmIrTranslatorTricore::translateStore},
+
+        {TRICORE_INS_SUBD, &Capstone2LlvmIrTranslatorTricore::translateSub},
+
+        {TRICORE_INS_ORD, &Capstone2LlvmIrTranslatorTricore::translateBitOperationsD},
+        {TRICORE_INS_ANDD, &Capstone2LlvmIrTranslatorTricore::translateBitOperationsD},
 
     };
 
