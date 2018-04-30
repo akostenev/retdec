@@ -1,6 +1,10 @@
 #ifndef RETDEC_CAPSTONE2LLVMIR_TRICORE_DEFS_H
 #define RETDEC_CAPSTONE2LLVMIR_TRICORE_DEFS_H
 
+#define WORD 4
+#define HALFWORD 2
+#define BYTE 1
+
 #include "capstone/capstone.h"
 #include <bitset>
 
@@ -71,26 +75,6 @@ typedef enum tricore_reg {
     TRICORE_REG_A_13 = TRICORE_REG_A_12 + 4,
     TRICORE_REG_A_14 = TRICORE_REG_A_13 + 4,
     TRICORE_REG_A_15 = TRICORE_REG_A_14 + 4,
-
-    //8 Extended data registers E[0] := D[0]:D[1], E[2] := D[2]:D[3]
-    TRICORE_REG_E_0 = TRICORE_REG_D_0,
-    TRICORE_REG_E_2 = TRICORE_REG_E_0 + 8,
-    TRICORE_REG_E_4 = TRICORE_REG_E_2 + 8,
-    TRICORE_REG_E_6 = TRICORE_REG_E_4 + 8,
-    TRICORE_REG_E_8 = TRICORE_REG_E_6 + 8,
-    TRICORE_REG_E_10 = TRICORE_REG_E_8 + 8,
-    TRICORE_REG_E_12 = TRICORE_REG_E_10 + 8,
-    TRICORE_REG_E_14 = TRICORE_REG_E_12 + 8,
-
-    //8 Extended address registers P[0] := A[0]:A[1], P[2] := A[2]:A[3]
-    TRICORE_REG_P_0 = TRICORE_REG_A_0,
-    TRICORE_REG_P_2 = TRICORE_REG_P_0 + 8,
-    TRICORE_REG_P_4 = TRICORE_REG_P_2 + 8,
-    TRICORE_REG_P_6 = TRICORE_REG_P_4 + 8,
-    TRICORE_REG_P_8 = TRICORE_REG_P_6 + 8,
-    TRICORE_REG_P_10 = TRICORE_REG_P_8 + 8,
-    TRICORE_REG_P_12 = TRICORE_REG_P_10 + 8,
-    TRICORE_REG_P_14 = TRICORE_REG_P_12 + 8,
 
     // alias registers
     TRICORE_REG_SP = TRICORE_REG_A_10, //Stack Pointer
@@ -227,6 +211,27 @@ typedef enum tricore_reg {
 } tricore_reg;
 
 
+typedef enum tricore_reg_ext {
+    //8 Extended data registers E[0] := D[0]:D[1], E[2] := D[2]:D[3]
+    TRICORE_REG_E_0 = TRICORE_REG_ENDING + 1,
+    TRICORE_REG_E_2,
+    TRICORE_REG_E_4,
+    TRICORE_REG_E_6,
+    TRICORE_REG_E_8,
+    TRICORE_REG_E_10,
+    TRICORE_REG_E_12,
+    TRICORE_REG_E_14,
+
+    //8 Extended address registers P[0] := A[0]:A[1], P[2] := A[2]:A[3]
+    TRICORE_REG_P_0,
+    TRICORE_REG_P_2,
+    TRICORE_REG_P_4,
+    TRICORE_REG_P_6,
+    TRICORE_REG_P_8,
+    TRICORE_REG_P_10,
+    TRICORE_REG_P_12,
+    TRICORE_REG_P_14,
+} tricore_reg_ext;
 
 typedef enum TRICORE_OF { // Opcode format
     TRICORE_OF_INVALID,
@@ -288,15 +293,20 @@ typedef enum tricore_op_type {
 typedef struct tricore_op_mem {
     tricore_reg base;    // base register
     uint64_t disp;     // displacement/offset value
+    uint8_t size; //size in bytes e.g. 4:word, 2:half-word, ...
 
-    tricore_op_mem(tricore_reg base, int64_t disp) :
+    tricore_op_mem(tricore_reg base, uint64_t disp, uint8_t size = WORD) :
             base(base),
-            disp(disp) {};
+            disp(disp),
+            size(size)
+            {};
 } tricore_op_mem;
 
 // Instruction operand
 typedef struct cs_tricore_op {
     tricore_op_type type;    // operand type
+    bool extended; // e.g. reg E[0] = D[0]:D[1]
+
     union {
         tricore_reg reg;    // register value for REG operand
         uint64_t imm;        // immediate value for IMM operand
@@ -305,19 +315,23 @@ typedef struct cs_tricore_op {
 
     cs_tricore_op() :
         type(TRICORE_OP_INVALID),
+        extended(false),
         imm(0) {};
 
     cs_tricore_op(tricore_reg reg) :
         type(TRICORE_OP_REG),
+        extended(false),
         reg(reg) {};
 
     cs_tricore_op(uint64_t imm) :
         type(TRICORE_OP_IMM),
+        extended(false),
         imm(imm) {};
 
-    cs_tricore_op(tricore_reg base, uint64_t disp) :
+    cs_tricore_op(tricore_reg base, uint64_t disp, uint8_t size = WORD) :
         type(TRICORE_OP_MEM),
-        mem(tricore_op_mem(base, disp)) {};
+        extended(false),
+        mem(tricore_op_mem(base, disp, size)) {};
 
 } cs_tricore_op;
 
@@ -353,6 +367,8 @@ typedef enum tricore_insn {
     TRICORE_INS_BIT_OPERATIONS2 = 0x0F,
 
     TRICORE_INS_CALL_24 = 0x6D,
+
+    TRICORE_INS_EXTR = 0x37,
 
     TRICORE_INS_J_24 = 0x1D,
     TRICORE_INS_J_8 = 0x3C,
@@ -405,10 +421,18 @@ typedef enum tricore_insn {
     TRICORE_INS_JZT = 0x6F,
     TRICORE_INS_JZT_16 = 0x2E,
 
-    TRICORE_INS_LD_A = 0x85,
+    TRICORE_INS_LD = 0x85,
+    TRICORE_INS_LDA = 0xC4,
+    TRICORE_INS_LDD = 0x44,
     TRICORE_INS_LD_HD = 0x8C,
+    TRICORE_INS_LD_HD_PINC = 0x84, //Load half-word, post incr //TODO find better name
     TRICORE_INS_LD_BUD = 0x0C,
+    TRICORE_INS_LD09 = 0x09,
 
+    TRICORE_INS_LOOP = 0xFC,
+
+    TRICORE_INS_MOVA = 0xA0,
+    TRICORE_INS_MOVAA = 0x40,
     TRICORE_INS_MOVAD = 0x60,
     TRICORE_INS_MOVDA = 0x80,
     TRICORE_INS_MOVD_A = 0x82,
@@ -418,8 +442,15 @@ typedef enum tricore_insn {
     TRICORE_INS_MOVU = 0xBB,
 
     TRICORE_INS_SHAD = 0x86,
+    TRICORE_INS_SHD = 0x06,
 
-    TRICORE_INS_ST_A = 0xA5,
+    TRICORE_INS_ST = 0xA5,
+    TRICORE_INS_STA = 0xF4,
+    TRICORE_INS_STB = 0x34,
+    TRICORE_INS_STD = 0x74,
+    TRICORE_INS_STHW = 0xA4,
+    TRICORE_INS_STW = 0x64,
+    TRICORE_INS_ST89 = 0x89,
 
     TRICORE_INS_SUBD = 0xA2,
 

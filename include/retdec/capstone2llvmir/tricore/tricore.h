@@ -64,12 +64,15 @@ protected:
 
     //Helper funcs
 protected:
+    //returns e.g. E[0] for D[0], E2 for D[2]
+    uint32_t regToExtendedReg(uint32_t r) const;
+
     llvm::IntegerType* getDefaultType();
     llvm::Value* getCurrentPc(cs_insn* i);
     llvm::Value* getNextInsnAddress(cs_insn* i);
     llvm::Value* getNextNextInsnAddress(cs_insn* i);
 
-    llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb);
+    llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb, bool extended = false);
     llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty = nullptr);
     llvm::Value* loadOpUnary(cs_tricore* mi, llvm::IRBuilder<>& irb);
     std::pair<llvm::Value*, llvm::Value*> loadOpBinary(cs_tricore* mi, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::NOTHING);
@@ -78,7 +81,7 @@ protected:
     std::pair<llvm::Value*, llvm::Value*> loadOp1Op2(cs_tricore* mi, llvm::IRBuilder<>& irb, eOpConv ct);
 
     llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC);
-    llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC);
+    llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC, bool extended = false);
 
     tricore_reg getRegDByNumber(unsigned n);
     tricore_reg getRegAByNumber(unsigned n);
@@ -91,17 +94,21 @@ protected:
     void translateBitOperations2(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateBitOperationsD(cs_insn* i, llvm::IRBuilder<>& irb);
 
+    void translateExtr(cs_insn* i, llvm::IRBuilder<>& irb);
+
     void translateJ(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateJal(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateConditionalJ(cs_insn* i, llvm::IRBuilder<>& irb);
 
     void translateLea(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateLoad(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateLoad09(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateLdAbs(cs_insn* i, llvm::IRBuilder<>& irb);
 
     void translateShift(cs_insn* i, llvm::IRBuilder<>& irb);
 
     void translateStore(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateStore89(cs_insn* i, llvm::IRBuilder<>& irb);
 
     void translateSub(cs_insn* i, llvm::IRBuilder<>& irb);
 

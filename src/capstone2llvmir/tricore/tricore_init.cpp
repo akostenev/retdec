@@ -182,6 +182,85 @@ void Capstone2LlvmIrTranslatorTricore::initializeRegTypeMap()
     _reg2type = std::move(r2t);
 }
 
+void Capstone2LlvmIrTranslatorTricore::generateDataLayout() {
+    /**
+     * @src http://llvm.org/docs/LangRef.html#data-layout
+     * e little endian
+     * m:e ELF mangling
+     * p:32:32 32 bit pointer
+     * TODO floting point registers? f32 f64 f80 f128?
+     * n:32 native integer widths
+     * S:64 @src Tricore 1.6 Vol 1: 2.2.1 Table 2-1
+     */
+    _module->setDataLayout("e-m:e-p:32:32-n32-S64");
+}
+
+void Capstone2LlvmIrTranslatorTricore::generateRegisters() {
+    createRegister(TRICORE_REG_PCXI_PCX, _regLt);
+    createRegister(TRICORE_REG_PC, _regLt);
+    createRegister(TRICORE_REG_SYSCON, _regLt);
+    createRegister(TRICORE_REG_CPU_ID, _regLt);
+    createRegister(TRICORE_REG_BIV, _regLt);
+    createRegister(TRICORE_REG_BTV, _regLt);
+    createRegister(TRICORE_REG_ISP, _regLt);
+    createRegister(TRICORE_REG_ICR, _regLt);
+    createRegister(TRICORE_REG_FCX, _regLt);
+    createRegister(TRICORE_REG_LCX, _regLt);
+    createRegister(TRICORE_REG_COMPAT, _regLt);
+
+    createRegister(TRICORE_REG_D_0, _regLt);
+    createRegister(TRICORE_REG_D_1, _regLt);
+    createRegister(TRICORE_REG_D_2, _regLt);
+    createRegister(TRICORE_REG_D_3, _regLt);
+    createRegister(TRICORE_REG_D_4, _regLt);
+    createRegister(TRICORE_REG_D_5, _regLt);
+    createRegister(TRICORE_REG_D_6, _regLt);
+    createRegister(TRICORE_REG_D_7, _regLt);
+    createRegister(TRICORE_REG_D_8, _regLt);
+    createRegister(TRICORE_REG_D_9, _regLt);
+    createRegister(TRICORE_REG_D_10, _regLt);
+    createRegister(TRICORE_REG_D_11, _regLt);
+    createRegister(TRICORE_REG_D_12, _regLt);
+    createRegister(TRICORE_REG_D_13, _regLt);
+    createRegister(TRICORE_REG_D_14, _regLt);
+    createRegister(TRICORE_REG_D_15, _regLt);
+
+    createRegister(TRICORE_REG_A_0, _regLt);
+    createRegister(TRICORE_REG_A_1, _regLt);
+    createRegister(TRICORE_REG_A_2, _regLt);
+    createRegister(TRICORE_REG_A_3, _regLt);
+    createRegister(TRICORE_REG_A_4, _regLt);
+    createRegister(TRICORE_REG_A_5, _regLt);
+    createRegister(TRICORE_REG_A_6, _regLt);
+    createRegister(TRICORE_REG_A_7, _regLt);
+    createRegister(TRICORE_REG_A_8, _regLt);
+    createRegister(TRICORE_REG_A_9, _regLt);
+    createRegister(TRICORE_REG_A_10, _regLt);
+    createRegister(TRICORE_REG_A_11, _regLt);
+    createRegister(TRICORE_REG_A_12, _regLt);
+    createRegister(TRICORE_REG_A_13, _regLt);
+    createRegister(TRICORE_REG_A_14, _regLt);
+    createRegister(TRICORE_REG_A_15, _regLt);
+
+    createRegister(TRICORE_REG_E_0, _regLt);
+    createRegister(TRICORE_REG_E_2, _regLt);
+    createRegister(TRICORE_REG_E_4, _regLt);
+    createRegister(TRICORE_REG_E_6, _regLt);
+    createRegister(TRICORE_REG_E_8, _regLt);
+    createRegister(TRICORE_REG_E_10, _regLt);
+    createRegister(TRICORE_REG_E_12, _regLt);
+    createRegister(TRICORE_REG_E_14, _regLt);
+
+    createRegister(TRICORE_REG_P_0, _regLt);
+    createRegister(TRICORE_REG_P_2, _regLt);
+    createRegister(TRICORE_REG_P_4, _regLt);
+    createRegister(TRICORE_REG_P_6, _regLt);
+    createRegister(TRICORE_REG_P_8, _regLt);
+    createRegister(TRICORE_REG_P_10, _regLt);
+    createRegister(TRICORE_REG_P_12, _regLt);
+    createRegister(TRICORE_REG_P_14, _regLt);
+}
+
 /**
  * TODO
  */
@@ -207,25 +286,35 @@ std::map<
 
         {TRICORE_INS_CALL_24, &Capstone2LlvmIrTranslatorTricore::translateNop}, //TODO
 
+        {TRICORE_INS_EXTR, &Capstone2LlvmIrTranslatorTricore::translateExtr},
+
         {TRICORE_INS_J_24, &Capstone2LlvmIrTranslatorTricore::translateJ},
         {TRICORE_INS_J_8, &Capstone2LlvmIrTranslatorTricore::translateJ},
         {TRICORE_INS_JA, &Capstone2LlvmIrTranslatorTricore::translateJ},
         {TRICORE_INS_JIA, &Capstone2LlvmIrTranslatorTricore::translateJ},
         {TRICORE_INS_JL, &Capstone2LlvmIrTranslatorTricore::translateJal},
+        {TRICORE_INS_JEQ_A, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JEQ_15_c, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JNZD, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JNZT, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JZD, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
 
         {TRICORE_INS_LEA, &Capstone2LlvmIrTranslatorTricore::translateLea},
-        {TRICORE_INS_LD_A, &Capstone2LlvmIrTranslatorTricore::translateLdAbs},
-
+        {TRICORE_INS_LD, &Capstone2LlvmIrTranslatorTricore::translateLdAbs},
+        {TRICORE_INS_LDA, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_LDD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_LD_HD_PINC, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_LD_BUD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
-
         {TRICORE_INS_LD_HD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_LD09, &Capstone2LlvmIrTranslatorTricore::translateLoad09},
+
+
+        {TRICORE_INS_LOOP, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
 
         {TRICORE_INS_MFCR, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MTCR, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_MOVA, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_MOVAA, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVAD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVDA, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVD_A, &Capstone2LlvmIrTranslatorTricore::translateLoad},
@@ -235,8 +324,16 @@ std::map<
         {TRICORE_INS_MOVU, &Capstone2LlvmIrTranslatorTricore::translateLoad},
 
         {TRICORE_INS_SHAD, &Capstone2LlvmIrTranslatorTricore::translateShift},
+        {TRICORE_INS_SHD, &Capstone2LlvmIrTranslatorTricore::translateShift},
 
-        {TRICORE_INS_ST_A, &Capstone2LlvmIrTranslatorTricore::translateStore},
+        {TRICORE_INS_ST, &Capstone2LlvmIrTranslatorTricore::translateStore},
+        {TRICORE_INS_STB, &Capstone2LlvmIrTranslatorTricore::translateStore},
+        {TRICORE_INS_STA, &Capstone2LlvmIrTranslatorTricore::translateStore},
+        {TRICORE_INS_STD, &Capstone2LlvmIrTranslatorTricore::translateStore},
+        {TRICORE_INS_STHW, &Capstone2LlvmIrTranslatorTricore::translateStore},
+        {TRICORE_INS_STW, &Capstone2LlvmIrTranslatorTricore::translateStore},
+
+        {TRICORE_INS_ST89, &Capstone2LlvmIrTranslatorTricore::translateStore89},
 
         {TRICORE_INS_SUBD, &Capstone2LlvmIrTranslatorTricore::translateSub},
 
