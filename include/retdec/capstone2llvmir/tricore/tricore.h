@@ -41,6 +41,7 @@ public:
     // Protected pure virtual methods that must be implemented in concrete classes.
 protected:
     virtual void translateInstruction(cs_insn* i, llvm::IRBuilder<>& irb) override;
+    virtual llvm::StoreInst* generateSpecialAsm2LlvmInstr(llvm::IRBuilder<>& irb, cs_insn* i) override;
     virtual void initializeArchSpecific() override;
     virtual void initializeRegNameMap() override;
     virtual void initializeRegTypeMap() override;
@@ -100,7 +101,6 @@ protected:
     void translateJal(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateConditionalJ(cs_insn* i, llvm::IRBuilder<>& irb);
 
-    void translateLea(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateLoad(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateLoad09(cs_insn* i, llvm::IRBuilder<>& irb);
     void translateLdAbs(cs_insn* i, llvm::IRBuilder<>& irb);

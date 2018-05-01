@@ -84,7 +84,11 @@ bool AsmInstructionRemover::run(Module& M)
 				AsmInstruction ai(inst);
 				if (cs_insn* insn = ai.getCapstoneInsn())
 				{
-					cs_free(insn, 1);
+                                        if (std::string(insn->op_str) == "tricore") {
+                                                delete insn;
+                                        } else {
+                                                cs_free(insn, 1);
+                                        }
 				}
 
 				inst->eraseFromParent();

@@ -207,7 +207,7 @@ typedef enum tricore_reg {
 //     TRIORE_REG_TR6ADR = 0xf066,
     //.........
 
-    TRICORE_REG_ENDING // <-- mark the end of the list or registers
+    TRICORE_REG_ENDING = 0x100000 // <-- mark the end of the list or registers
 } tricore_reg;
 
 
@@ -360,8 +360,9 @@ typedef enum tricore_insn {
     // _r := register
     // _z := zero extend
 
-    TRICORE_INS_ADDI = 0x1B,
+    TRICORE_INS_ADDA = 0xB0,
     TRICORE_INS_ADDD = 0xC2,
+    TRICORE_INS_ADDI = 0x1B,
 
     TRICORE_INS_BIT_OPERATIONS1 = 0x8F,
     TRICORE_INS_BIT_OPERATIONS2 = 0x0F,
@@ -414,7 +415,7 @@ typedef enum tricore_insn {
     TRICORE_INS_JNZA_16 = 0x7C,
     TRICORE_INS_JNZT = 0x6F,
     TRICORE_INS_JNZT_16 = 0xAE,
-    TRICORE_INS_JZ_c = 0x6E,
+    TRICORE_INS_JZ_D15 = 0x6E,
     TRICORE_INS_JZD = 0x76,
     TRICORE_INS_JZA = 0xBD,
     TRICORE_INS_JZA_16 = 0xBC,
@@ -422,16 +423,19 @@ typedef enum tricore_insn {
     TRICORE_INS_JZT_16 = 0x2E,
 
     TRICORE_INS_LD = 0x85,
-    TRICORE_INS_LDA = 0xC4,
+    TRICORE_INS_LDA = 0xC8,
+    TRICORE_INS_LDA_PINC = 0xC4,
     TRICORE_INS_LDD = 0x44,
     TRICORE_INS_LD_HD = 0x8C,
     TRICORE_INS_LD_HD_PINC = 0x84, //Load half-word, post incr //TODO find better name
     TRICORE_INS_LD_BUD = 0x0C,
+    TRICORE_INS_LDW = 0x19,
     TRICORE_INS_LD09 = 0x09,
 
     TRICORE_INS_LOOP = 0xFC,
 
     TRICORE_INS_MOVA = 0xA0,
+    TRICORE_INS_MOVDD = 0x02,
     TRICORE_INS_MOVAA = 0x40,
     TRICORE_INS_MOVAD = 0x60,
     TRICORE_INS_MOVDA = 0x80,
@@ -450,8 +454,10 @@ typedef enum tricore_insn {
     TRICORE_INS_STD = 0x74,
     TRICORE_INS_STHW = 0xA4,
     TRICORE_INS_STW = 0x64,
+    TRICORE_INS_STWA = 0x59,
     TRICORE_INS_ST89 = 0x89,
 
+    TRICORE_INS_SUBA10 = 0x20,
     TRICORE_INS_SUBD = 0xA2,
 
     TRICORE_INS_MFCR = 0x4D,

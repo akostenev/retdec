@@ -353,6 +353,7 @@ class AsmInstruction
 		using ModuleGlobalPair = std::pair<const llvm::Module*, const llvm::GlobalVariable*>;
 
 	private:
+                cs_insn csTricoreIns;
 		llvm::StoreInst* _llvmToAsmInstr = nullptr;
 		static std::vector<ModuleGlobalPair> _cache;
 };

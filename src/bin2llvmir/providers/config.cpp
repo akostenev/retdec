@@ -432,7 +432,8 @@ bool Config::isStackPointerRegister(const llvm::Value* val)
 	return n == "esp"
 			|| (n == "r1" && arch.isPpc())
 			|| n == "sp"
-			|| n == "rsp";
+			|| n == "rsp"
+                        || (arch.isTricore() && n == "a10");
 }
 
 bool Config::isGeneralPurposeRegister(const llvm::Value* val)
@@ -471,6 +472,13 @@ bool Config::isGeneralPurposeRegister(const llvm::Value* val)
 		return n == "eax" || n == "ebx" || n == "ecx" || n == "edx"
 				|| n == "esp" || n == "ebp" || n == "esi" || n == "edi";
 	}
+	else if (getConfig().architecture.isTricore())
+        {
+            auto rn = r->getStorage().getRegisterNumber();
+            return (0xff00 <= rn && rn <= 0xff00 + 15 * 4) //D
+                || (0xff80 <= rn && rn <= 0xff80 + 15 * 4) //A
+                || rn > 0x100000;
+        }
 	else
 	{
 		return false;
