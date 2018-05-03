@@ -68,7 +68,7 @@ protected:
     //returns e.g. E[0] for D[0], E2 for D[2]
     uint32_t regToExtendedReg(uint32_t r) const;
 
-    llvm::IntegerType* getDefaultType();
+    llvm::IntegerType* getType(uint8_t bitSize = 32);
     llvm::Value* getCurrentPc(cs_insn* i);
     llvm::Value* getNextInsnAddress(cs_insn* i);
     llvm::Value* getNextNextInsnAddress(cs_insn* i);
@@ -84,35 +84,32 @@ protected:
     llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC);
     llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC, bool extended = false);
 
-    tricore_reg getRegDByNumber(unsigned n);
-    tricore_reg getRegAByNumber(unsigned n);
-
 protected:
-    static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, llvm::IRBuilder<>&)> _i2fm;
-    void translateAdd(cs_insn* i, llvm::IRBuilder<>& irb);
+    static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>&)> _i2fm;
+    void translateAdd(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateBitOperations1(cs_insn* i, llvm::IRBuilder<>& irb);
-    void translateBitOperations2(cs_insn* i, llvm::IRBuilder<>& irb);
-    void translateBitOperationsD(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateBitOperations1(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateBitOperations2(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateBitOperationsD(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateExtr(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateExtr(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateJ(cs_insn* i, llvm::IRBuilder<>& irb);
-    void translateJal(cs_insn* i, llvm::IRBuilder<>& irb);
-    void translateConditionalJ(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateJal(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateConditionalJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateLoad(cs_insn* i, llvm::IRBuilder<>& irb);
-    void translateLoad09(cs_insn* i, llvm::IRBuilder<>& irb);
-    void translateLdAbs(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateLoad(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateLoad09(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateLdAbs(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateShift(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateShift(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateStore(cs_insn* i, llvm::IRBuilder<>& irb);
-    void translateStore89(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateStore(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateStore89(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateSub(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateSub(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateNop(cs_insn* i, llvm::IRBuilder<>& irb);
+    void translateNop(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 };
 
 } // namespace capstone2llvmir

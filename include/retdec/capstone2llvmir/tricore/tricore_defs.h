@@ -288,19 +288,45 @@ typedef enum tricore_op_type {
     TRICORE_OP_MEM, // = CS_OP_MEM (Memory operand).
 } tricore_op_type;
 
+typedef enum tricore_ext {
+    TRICORE_EXT_NOTHING = 0,
+    TRICORE_EXT_ZEXT,
+    TRICORE_EXT_SEXT,
+} tricore_ext;
+
 // Instruction's operand referring to memory
 // This is associated with MIPS_OP_MEM operand type above
 typedef struct tricore_op_mem {
     tricore_reg base;    // base register
     uint64_t disp;     // displacement/offset value
-    uint8_t size; //size in bytes e.g. 4:word, 2:half-word, ...
+    uint8_t size; // size in bytes e.g. 4:word, 2:half-word, ...
+    tricore_ext sizeExt; // Extension if size < sizeof base
+    tricore_ext dispExt; // Extension of disp
+    bool lea;
 
-    tricore_op_mem(tricore_reg base, uint64_t disp, uint8_t size = WORD) :
+    tricore_op_mem(tricore_reg base, uint64_t disp, uint8_t size = WORD, tricore_ext sizeExt = TRICORE_EXT_NOTHING, tricore_ext dispExt = TRICORE_EXT_NOTHING) :
             base(base),
             disp(disp),
-            size(size)
+            size(size),
+            sizeExt(sizeExt),
+            dispExt(dispExt),
+            lea(false)
             {};
 } tricore_op_mem;
+
+typedef struct tricore_op_imm {
+    uint64_t value; //immediate value
+    uint8_t sizeInBit; //sizeof val in bit
+    tricore_ext ext;
+    bool mult2; //many instruction uses val * 2
+
+    tricore_op_imm(uint64_t imm, uint8_t sizeInBit = 32, tricore_ext ext = TRICORE_EXT_NOTHING, bool mult2 = false) :
+            value(imm),
+            sizeInBit(sizeInBit),
+            ext(ext),
+            mult2(mult2)
+            {};
+} tricore_op_imm;
 
 // Instruction operand
 typedef struct cs_tricore_op {
@@ -309,29 +335,31 @@ typedef struct cs_tricore_op {
 
     union {
         tricore_reg reg;    // register value for REG operand
-        uint64_t imm;        // immediate value for IMM operand
+        tricore_op_imm imm;        // immediate value for IMM operand
         tricore_op_mem mem;    // base/index/scale/disp value for MEM operand
     };
 
     cs_tricore_op() :
         type(TRICORE_OP_INVALID),
-        extended(false),
-        imm(0) {};
+        extended(false) {};
 
     cs_tricore_op(tricore_reg reg) :
         type(TRICORE_OP_REG),
         extended(false),
         reg(reg) {};
 
-    cs_tricore_op(uint64_t imm) :
+    cs_tricore_op(tricore_op_imm imm, tricore_ext ext = TRICORE_EXT_NOTHING, bool mult2 = false) :
         type(TRICORE_OP_IMM),
         extended(false),
-        imm(imm) {};
+        imm(imm) {
+            imm.ext = ext;
+            imm.mult2 = mult2;
+        };
 
-    cs_tricore_op(tricore_reg base, uint64_t disp, uint8_t size = WORD) :
+    cs_tricore_op(tricore_reg base, uint64_t disp, uint8_t size = WORD, tricore_ext sizeExt = TRICORE_EXT_NOTHING, tricore_ext dispExt = TRICORE_EXT_NOTHING) :
         type(TRICORE_OP_MEM),
         extended(false),
-        mem(tricore_op_mem(base, disp, size)) {};
+        mem(tricore_op_mem(base, disp, size, sizeExt, dispExt)) {};
 
 } cs_tricore_op;
 
@@ -345,7 +373,7 @@ typedef struct cs_tricore {
     cs_tricore_op operands[8]; // operands for this instruction.
 
     uint8_t op2; //op2 for many op formats like BRN, default 0
-    uint8_t brnN; //bit n for BRN, 0 if !BRN format
+    uint8_t n; //bits for BRN, RR, RR1, etc.
 
     cs_tricore(cs_insn* i);
 } cs_tricore;
@@ -409,7 +437,7 @@ typedef enum tricore_insn {
     TRICORE_INS_JNED_r = 0x1F,
     TRICORE_INS_JNEI_c = 0x9F,
     TRICORE_INS_JNEI_r = 0x1F,
-    TRICORE_INS_JNZD = 0xEE,
+    TRICORE_INS_JNZ_D15 = 0xEE,
     TRICORE_INS_JNZ_r = 0xF6,
     TRICORE_INS_JNZA = 0xBD,
     TRICORE_INS_JNZA_16 = 0x7C,
