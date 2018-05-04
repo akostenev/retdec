@@ -8,7 +8,7 @@ set(CAPSTONE2LLVMIR_SOURCES
 	x86/x86_init.cpp
 	x86/x86.cpp
 	capstone2llvmir.cpp
-	tricore/tricore_deps.cpp
+	tricore/tricore_dism.cpp
 	tricore/tricore_init.cpp
 	tricore/tricore.cpp
 	tricore/tricore_translate.cpp

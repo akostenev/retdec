@@ -73,15 +73,11 @@ protected:
     llvm::Value* getNextInsnAddress(cs_insn* i);
     llvm::Value* getNextNextInsnAddress(cs_insn* i);
 
-    llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb, bool extended = false);
-    llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty = nullptr);
-    llvm::Value* loadOpUnary(cs_tricore* mi, llvm::IRBuilder<>& irb);
-    std::pair<llvm::Value*, llvm::Value*> loadOpBinary(cs_tricore* mi, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::NOTHING);
-    llvm::Value* loadOpBinaryOp1(cs_tricore* mi, llvm::IRBuilder<>& irb, llvm::Type* ty = nullptr);
-    std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> loadOpTernary(cs_tricore* mi, llvm::IRBuilder<>& irb);
-    std::pair<llvm::Value*, llvm::Value*> loadOp1Op2(cs_tricore* mi, llvm::IRBuilder<>& irb, eOpConv ct);
-
+    llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb);
+    llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty);
     llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC);
+
+    llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb, bool extended = false);
     llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC, bool extended = false);
 
 protected:
@@ -120,17 +116,15 @@ protected:
  */
 // drop bits outside the range [R, L) == [R, L]
 template<std::size_t R, std::size_t L, std::size_t N>
-std::bitset<N> bitRange(const std::bitset<N>& b)
-{
-    std::bitset<N> _b = b;
+std::bitset<N> bitRange(std::bitset<N> b) {
     if (R > L - 1 || L - 1 >= N) {
         assert(false);
     }
 
-    _b <<= (N - L - 1);
-    _b >>= (N - L + R - 1); // shift to lsb
+    b <<= (N - L - 1);
+    b >>= (N - L + R - 1); // shift to lsb
 
-    return _b;
+    return b;
 };
 
 // template<std::uint16_t N>

@@ -294,39 +294,35 @@ typedef enum tricore_ext {
     TRICORE_EXT_SEXT,
 } tricore_ext;
 
-// Instruction's operand referring to memory
-// This is associated with MIPS_OP_MEM operand type above
-typedef struct tricore_op_mem {
-    tricore_reg base;    // base register
-    uint64_t disp;     // displacement/offset value
-    uint8_t size; // size in bytes e.g. 4:word, 2:half-word, ...
-    tricore_ext sizeExt; // Extension if size < sizeof base
-    tricore_ext dispExt; // Extension of disp
-    bool lea;
-
-    tricore_op_mem(tricore_reg base, uint64_t disp, uint8_t size = WORD, tricore_ext sizeExt = TRICORE_EXT_NOTHING, tricore_ext dispExt = TRICORE_EXT_NOTHING) :
-            base(base),
-            disp(disp),
-            size(size),
-            sizeExt(sizeExt),
-            dispExt(dispExt),
-            lea(false)
-            {};
-} tricore_op_mem;
-
 typedef struct tricore_op_imm {
     uint64_t value; //immediate value
     uint8_t sizeInBit; //sizeof val in bit
     tricore_ext ext;
-    bool mult2; //many instruction uses val * 2
 
-    tricore_op_imm(uint64_t imm, uint8_t sizeInBit = 32, tricore_ext ext = TRICORE_EXT_NOTHING, bool mult2 = false) :
+    tricore_op_imm(uint64_t imm, uint8_t sizeInBit = 32, tricore_ext ext = TRICORE_EXT_NOTHING) :
             value(imm),
             sizeInBit(sizeInBit),
-            ext(ext),
-            mult2(mult2)
+            ext(ext)
             {};
 } tricore_op_imm;
+
+// Instruction's operand referring to memory
+// This is associated with MIPS_OP_MEM operand type above
+typedef struct tricore_op_mem {
+    tricore_reg base;    // base register
+    tricore_op_imm disp; // displacement/offset value
+    uint8_t size; // size in bytes e.g. 4:word, 2:half-word, ...
+    tricore_ext ext; // Extension if size < sizeof base
+    bool lea;
+
+    tricore_op_mem(tricore_reg base, tricore_op_imm disp, uint8_t size = WORD, tricore_ext ext = TRICORE_EXT_NOTHING, bool lea = false) :
+            base(base),
+            disp(disp),
+            size(size),
+            ext(ext),
+            lea(lea)
+            {};
+} tricore_op_mem;
 
 // Instruction operand
 typedef struct cs_tricore_op {
@@ -348,18 +344,15 @@ typedef struct cs_tricore_op {
         extended(false),
         reg(reg) {};
 
-    cs_tricore_op(tricore_op_imm imm, tricore_ext ext = TRICORE_EXT_NOTHING, bool mult2 = false) :
+    cs_tricore_op(tricore_op_imm imm) :
         type(TRICORE_OP_IMM),
         extended(false),
-        imm(imm) {
-            imm.ext = ext;
-            imm.mult2 = mult2;
-        };
+        imm(imm) {};
 
-    cs_tricore_op(tricore_reg base, uint64_t disp, uint8_t size = WORD, tricore_ext sizeExt = TRICORE_EXT_NOTHING, tricore_ext dispExt = TRICORE_EXT_NOTHING) :
+    cs_tricore_op(tricore_op_mem mem) :
         type(TRICORE_OP_MEM),
         extended(false),
-        mem(tricore_op_mem(base, disp, size, sizeExt, dispExt)) {};
+        mem(mem) {};
 
 } cs_tricore_op;
 

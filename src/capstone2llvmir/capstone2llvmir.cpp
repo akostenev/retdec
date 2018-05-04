@@ -401,7 +401,7 @@ std::unique_ptr<Capstone2LlvmIrTranslator> Capstone2LlvmIrTranslator::createTric
 		llvm::Module* m,
 		cs_mode extra)
 {
-	return std::make_unique<Capstone2LlvmIrTranslatorTricore>(m, CS_MODE_QPX, extra);
+	return std::make_unique<Capstone2LlvmIrTranslatorTricore>(m, CS_MODE_LITTLE_ENDIAN, extra);
 }
 
 void Capstone2LlvmIrTranslator::openHandle()
