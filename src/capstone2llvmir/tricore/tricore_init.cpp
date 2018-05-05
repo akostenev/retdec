@@ -274,9 +274,8 @@ std::map<
     void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>&)>
     Capstone2LlvmIrTranslatorTricore::_i2fm =
     {
-//         {TRICORE_INS_INVALID, nullptr}, // Same as TRICORE_INS_NOP
-        {TRICORE_INS_NOP, &Capstone2LlvmIrTranslatorTricore::translateNop},
-        {TRICORE_INS_ISYNC, &Capstone2LlvmIrTranslatorTricore::translateNop},
+        // TRICORE_INS_NOP, TRICORE_INS_RET
+        {0x00, &Capstone2LlvmIrTranslatorTricore::translate00},
 
         {TRICORE_INS_ADDA, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_ADDI, &Capstone2LlvmIrTranslatorTricore::translateAdd},
@@ -285,9 +284,11 @@ std::map<
         {TRICORE_INS_BIT_OPERATIONS1, &Capstone2LlvmIrTranslatorTricore::translateBitOperations1},
         {TRICORE_INS_BIT_OPERATIONS2, &Capstone2LlvmIrTranslatorTricore::translateBitOperations2},
 
-        {TRICORE_INS_CALL_24, &Capstone2LlvmIrTranslatorTricore::translateNop}, //TODO
+        {TRICORE_INS_CALL_24, &Capstone2LlvmIrTranslatorTricore::translate00},
 
         {TRICORE_INS_EXTR, &Capstone2LlvmIrTranslatorTricore::translateExtr},
+
+        {TRICORE_INS_ISYNC, &Capstone2LlvmIrTranslatorTricore::translateIgnore},
 
         {TRICORE_INS_J_24, &Capstone2LlvmIrTranslatorTricore::translateJ},
         {TRICORE_INS_J_8, &Capstone2LlvmIrTranslatorTricore::translateJ},
@@ -312,7 +313,6 @@ std::map<
         {TRICORE_INS_LD_HD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_LDW, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_LD09, &Capstone2LlvmIrTranslatorTricore::translateLoad09},
-
 
         {TRICORE_INS_LOOP, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
 

@@ -105,7 +105,8 @@ protected:
 
     void translateSub(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateNop(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translate00(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateIgnore(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 };
 
 } // namespace capstone2llvmir

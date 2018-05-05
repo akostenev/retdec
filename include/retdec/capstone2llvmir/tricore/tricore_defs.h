@@ -1,9 +1,10 @@
 #ifndef RETDEC_CAPSTONE2LLVMIR_TRICORE_DEFS_H
 #define RETDEC_CAPSTONE2LLVMIR_TRICORE_DEFS_H
 
-#define WORD 4
-#define HALFWORD 2
-#define BYTE 1
+#define DWORD 64
+#define WORD 32
+#define HALFWORD 16
+#define BYTE 8
 
 #include "capstone/capstone.h"
 #include <bitset>
@@ -311,7 +312,7 @@ typedef struct tricore_op_imm {
 typedef struct tricore_op_mem {
     tricore_reg base;    // base register
     tricore_op_imm disp; // displacement/offset value
-    uint8_t size; // size in bytes e.g. 4:word, 2:half-word, ...
+    uint8_t size; // size in bit e.g. 32:word, 16:half-word, ...
     tricore_ext ext; // Extension if size < sizeof base
     bool lea;
 
@@ -374,7 +375,7 @@ typedef struct cs_tricore {
 typedef enum tricore_insn {
     TRICORE_INS_INVALID = 0,
     TRICORE_INS_NOP = 0x00,
-    TRICORE_INS_ISYNC = 0x0D, // TRICORE_INS_NOP
+    TRICORE_INS_RET = 0x00,
 
     // _A := address
     // _c := constant
@@ -391,6 +392,8 @@ typedef enum tricore_insn {
     TRICORE_INS_CALL_24 = 0x6D,
 
     TRICORE_INS_EXTR = 0x37,
+
+    TRICORE_INS_ISYNC = 0x0D,
 
     TRICORE_INS_J_24 = 0x1D,
     TRICORE_INS_J_8 = 0x3C,

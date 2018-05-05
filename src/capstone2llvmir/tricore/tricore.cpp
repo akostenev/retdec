@@ -148,7 +148,7 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
                 return addr;
             }
 
-            auto* pt = llvm::PointerType::get(ty, 0);
+            auto* pt = llvm::PointerType::get(getType(op.mem.size), 0);
             addr = irb.CreateIntToPtr(addr, pt);
             return irb.CreateLoad(addr);
         }
@@ -163,7 +163,6 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
  * @a ct is used when storing a value to register with a different type.
  * When storing to memory, value type is used -- therefore it needs to be
  * converted to the desired type prior to @c storeOp() call.
- * // TODO: use this, instead of default sext for registers.
  */
 llvm::Instruction* Capstone2LlvmIrTranslatorTricore::storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct) {
     switch (op.type) {
@@ -173,19 +172,14 @@ llvm::Instruction* Capstone2LlvmIrTranslatorTricore::storeOp(cs_tricore_op& op, 
         case TRICORE_OP_MEM: {
             auto* baseR = loadRegister(op.mem.base, irb, op.extended);
 
-            auto* t = getType();
-            if (op.extended) {
-                t = llvm::Type::getInt64Ty(_module->getContext());
-            }
-
             llvm::Value* disp = nullptr;
             switch (op.mem.disp.ext) {
                 case TRICORE_EXT_SEXT:
-                    disp = llvm::ConstantInt::getSigned(t, op.mem.disp.value);
+                    disp = llvm::ConstantInt::getSigned(getType(), op.mem.disp.value);
                     break;
 
                 default:
-                    disp = llvm::ConstantInt::get(t, op.mem.disp.value);
+                    disp = llvm::ConstantInt::get(getType(), op.mem.disp.value);
             }
 
             llvm::Value* addr = nullptr;
@@ -236,12 +230,8 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadRegister(uint32_t r, llvm::IR
 }
 
 llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct, bool extended) {
-    if (r == TRICORE_REG_INVALID) {
-        return nullptr;
-    }
     // These registers should not be stored, or their store has no effect.
-    //
-    if (r == TRICORE_REG_PC || r == TRICORE_REG_ZERO) {
+    if (r == TRICORE_REG_INVALID || r == TRICORE_REG_PC || r == TRICORE_REG_ZERO) {
         return nullptr;
     }
 
@@ -263,9 +253,9 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
             case eOpConv::ZEXT_TRUNC:
                 val = irb.CreateZExtOrTrunc(val, regT);
                 break;
-            case eOpConv::FP_CAST:
-                val = irb.CreateFPCast(val, regT);
-                break;
+//             case eOpConv::FP_CAST:
+//                 val = irb.CreateFPCast(val, regT);
+//                 break;
             default:
                 throw Capstone2LlvmIrError("Unhandled eOpConv type.");
         }
@@ -279,7 +269,6 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::generateSpecialAsm2LlvmInstr(
         auto* gv = getAsm2LlvmMapGlobalVariable();
         auto* ci = llvm::ConstantInt::get(gv->getValueType(), a, false);
         auto* s = irb.CreateStore(ci, gv, true);
-
 
         auto* addr = llvm::ConstantInt::get(irb.getInt64Ty(), i->address);
         std::bitset<64> b = i->size == 4 ? i->bytes[3] << 24 | i->bytes[2] << 16 | i->bytes[1] << 8 | i->bytes[0] : i->bytes[1] << 8 | i->bytes[0];
@@ -335,6 +324,7 @@ uint32_t Capstone2LlvmIrTranslatorTricore::regToExtendedReg(uint32_t r) const {
 
 llvm::IntegerType* Capstone2LlvmIrTranslatorTricore::getType(uint8_t bitSize) {
     switch (bitSize) {
+        case 64: return llvm::Type::getInt64Ty(_module->getContext());
         case 32: return llvm::Type::getInt32Ty(_module->getContext());
         case 16: return llvm::Type::getInt16Ty(_module->getContext());
         case 8: return llvm::Type::getInt8Ty(_module->getContext());
