@@ -71,7 +71,12 @@ protected:
     llvm::IntegerType* getType(uint8_t bitSize = 32);
     llvm::Value* getCurrentPc(cs_insn* i);
     llvm::Value* getNextInsnAddress(cs_insn* i);
-    llvm::Value* getNextNextInsnAddress(cs_insn* i);
+
+    llvm::CallInst* generateBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative = true);
+    llvm::CallInst* generateCallFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative = true);
+    llvm::CallInst* generateCondBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* cond, llvm::Value* t, bool relative = true);
+    llvm::CallInst* generateReturnFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative = true);
+
 
     llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb);
     llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty);
@@ -88,10 +93,12 @@ protected:
     void translateBitOperations2(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateBitOperationsD(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
+    void translateCall(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+
     void translateExtr(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
-    void translateJal(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateJl(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateConditionalJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateLoad(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);

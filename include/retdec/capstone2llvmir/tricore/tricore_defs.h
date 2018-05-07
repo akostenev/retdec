@@ -383,20 +383,23 @@ typedef enum tricore_insn {
     // _z := zero extend
 
     TRICORE_INS_ADDA = 0xB0,
-    TRICORE_INS_ADDD = 0xC2,
+    TRICORE_INS_ADDD_c = 0xC2,
+    TRICORE_INS_ADDDD = 0x42,
     TRICORE_INS_ADDI = 0x1B,
+    TRICORE_INS_ADDIH_A = 0x11,
 
     TRICORE_INS_BIT_OPERATIONS1 = 0x8F,
     TRICORE_INS_BIT_OPERATIONS2 = 0x0F,
 
-    TRICORE_INS_CALL_24 = 0x6D,
+    TRICORE_INS_CALL16 = 0x5C,
+    TRICORE_INS_CALL32 = 0x6D,
 
     TRICORE_INS_EXTR = 0x37,
 
     TRICORE_INS_ISYNC = 0x0D,
 
-    TRICORE_INS_J_24 = 0x1D,
-    TRICORE_INS_J_8 = 0x3C,
+    TRICORE_INS_J32 = 0x1D,
+    TRICORE_INS_J16 = 0x3C,
     TRICORE_INS_JA = 0x9D,
     TRICORE_INS_JEQ_15_c = 0xDF,
     TRICORE_INS_JEQ_15_r = 0x5F,
@@ -404,7 +407,7 @@ typedef enum tricore_insn {
     TRICORE_INS_JEQ_4_c_PLUS_16 = 0x9E,
     TRICORE_INS_JEQ_4_r = 0x3E,
     TRICORE_INS_JEQ_4_r_PLUS_16 = 0xBE,
-    TRICORE_INS_JEQ_A = 0x7D,
+    TRICORE_INS_JEQA = 0x7D,
     TRICORE_INS_JGE_U_c = 0xFF,
     TRICORE_INS_JGE_U_r = 0x7F,
     TRICORE_INS_JGE_UD_c = 0xFF,
@@ -420,7 +423,7 @@ typedef enum tricore_insn {
     TRICORE_INS_JLT_U_c = 0xBF,
     TRICORE_INS_JLT_U_r = 0x3F,
     TRICORE_INS_JLT_U_c_z = 0xBF,
-    TRICORE_INS_JLT_U_r_z = 0x3F,
+    TRICORE_INS_JLTD = 0x3F,
     TRICORE_INS_JLTZ = 0x0E,
     TRICORE_INS_JNE_c = TRICORE_INS_JEQ_15_c,
     TRICORE_INS_JNE_r = 0x5F,

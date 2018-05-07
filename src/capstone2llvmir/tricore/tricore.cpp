@@ -96,6 +96,49 @@ void Capstone2LlvmIrTranslatorTricore::translateInstruction(cs_insn* i, llvm::IR
     }
 }
 
+llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
+    auto* a1t = _branchFunction->getArgumentList().front().getType();
+
+    if (relative) {
+        auto* pc = llvm::ConstantInt::get(getType(), i->address);
+        t = irb.CreateAdd(pc, t);
+    }
+
+    t = irb.CreateSExtOrTrunc(t, a1t);
+    _branchGenerated = irb.CreateCall(_branchFunction, {t});
+    return _branchGenerated;
+}
+
+llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateCallFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
+    return generateBranchFunctionCall(i, irb, t, relative);
+}
+
+llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateCondBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* cond, llvm::Value* t, bool relative) {
+    auto* a1t = _condBranchFunction->getArgumentList().back().getType();
+
+    if (relative) {
+        auto* pc = llvm::ConstantInt::get(getType(), i->address);
+        t = irb.CreateAdd(pc, t);
+    }
+
+    t = irb.CreateSExtOrTrunc(t, a1t);
+    _branchGenerated = irb.CreateCall(_condBranchFunction, {cond, t});
+    return _branchGenerated;
+}
+
+llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateReturnFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
+    auto* a1t = _returnFunction->getArgumentList().front().getType();
+
+    if (relative) {
+        auto* pc = llvm::ConstantInt::get(getType(), i->address);
+        t = irb.CreateAdd(pc, t);
+    }
+
+    t = irb.CreateSExtOrTrunc(t, a1t);
+    _branchGenerated = irb.CreateCall(_returnFunction, {t});
+    return _branchGenerated;
+}
+
 llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb) {
     if (op.extended) {
         return loadOp(op, irb, llvm::Type::getInt64Ty(_module->getContext()));
@@ -338,10 +381,6 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::getCurrentPc(cs_insn* i) {
 
 llvm::Value* Capstone2LlvmIrTranslatorTricore::getNextInsnAddress(cs_insn* i) {
     return llvm::ConstantInt::get(getType(), i->address + i->size);
-}
-
-llvm::Value* Capstone2LlvmIrTranslatorTricore::getNextNextInsnAddress(cs_insn* i) {
-    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(_module->getContext()), i->address + (2 * i->size));
 }
 
 bool Capstone2LlvmIrTranslatorTricore::isAllowedBasicMode(cs_mode m) {
