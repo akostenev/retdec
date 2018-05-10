@@ -15,6 +15,7 @@ void Capstone2LlvmIrTranslatorTricore::translateAdd(cs_insn* i, cs_tricore* t, l
             op2 = loadOp(t->operands[2], irb);
             add = irb.CreateAdd(op1, op2);
             break;
+
         case TRICORE_INS_ADDA: //A[a] = A[a] + sign_ext(const4);
         case TRICORE_INS_ADDD_c: //result = D[a] + sign_ext(const4); D[a] = result[31:0];
         case TRICORE_INS_ADDDD: //result = D[a] + D[b]; D[a] = result[31:0];
@@ -22,6 +23,13 @@ void Capstone2LlvmIrTranslatorTricore::translateAdd(cs_insn* i, cs_tricore* t, l
             op1 = loadOp(t->operands[1], irb);
             add = irb.CreateAdd(op0, op1);
             break;
+
+        case TRICORE_INS_ADDSCA: //A[a] = (A[b] + (D[15] << n));
+            op1 = loadOp(t->operands[1], irb);
+            op2 = loadOp(t->operands[2], irb);
+            add = irb.CreateAdd(op1, irb.CreateShl(op2, t->n));
+            break;
+
         default:
             assert(false);
     }
@@ -112,27 +120,23 @@ void Capstone2LlvmIrTranslatorTricore::translateExtr(cs_insn* i, cs_tricore* t, 
 }
 
 void Capstone2LlvmIrTranslatorTricore::translateJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
-    llvm::Value* target = nullptr;
-    bool relative = true;
 
     switch (i->id) {
         case TRICORE_INS_J32: //PC = PC + sign_ext(disp24) * 2;
         case TRICORE_INS_J16: //PC = PC + sign_ext(disp8) * 2;
-            target = loadOp(t->operands[0], irb);
+            generateBranchFunctionCall(i, irb, loadOp(t->operands[0], irb));
             break;
 
         case TRICORE_INS_JIA: //PC = {A[a][31:1], 1’b0};
-            target = loadOp(t->operands[0], irb);
-            target = irb.CreateAnd(target, ~(~0 << 31) << 1);
-            assert(target != nullptr);
-            relative = false;
+        {
+            auto target = loadOp(t->operands[0], irb);
+//             target = irb.CreateAnd(target, ~(~0 << 31) << 1);
+            generateBranchFunctionCall(i, irb, target, false);
             break;
-
+        }
         default:
             assert(false);
     }
-
-    generateBranchFunctionCall(i, irb, target, relative);
 }
 
 void Capstone2LlvmIrTranslatorTricore::translateJl(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
@@ -184,6 +188,23 @@ void Capstone2LlvmIrTranslatorTricore::translateConditionalJ(cs_insn* i, cs_tric
                     break;
                 default:
                     assert(false && "Unknown op2");
+            }
+            break;
+
+        case TRICORE_INS_JNEQ32:
+            op1 = loadOp(t->operands[1], irb);
+            target = loadOp(t->operands[2], irb);
+            switch (t->op2) {
+                case 0x01: // if (D[a] != D[b]) then PC = PC + sign_ext(disp15) * 2;
+                    cond = irb.CreateICmpNE(op0, op1);
+                    break;
+
+                case 0x00: //if (D[a] == D[b]) then PC = PC + sign_ext(disp15) * 2;
+                    cond = irb.CreateICmpEQ(op0, op1);
+                    break;
+
+                default:
+                    assert(false);
             }
             break;
 
@@ -252,13 +273,14 @@ void Capstone2LlvmIrTranslatorTricore::translateLoad(cs_insn* i, cs_tricore* t, 
             ct = eOpConv::SEXT_TRUNC;
             break;
         case TRICORE_INS_LDA: //A[c] = M(A[15] + zero_ext(4 * off4), word);
-        case TRICORE_INS_LD_BUD: // D[15] = zero_ext(M(A[b] + zero_ext(off4), byte));
+        case TRICORE_INS_LD_BUD15: // D[15] = zero_ext(M(A[b] + zero_ext(off4), byte));
         case TRICORE_INS_MOVA: // A[a] = zero_ext(const4);
         case TRICORE_INS_MOVH: // D[c] = {const16, 16’h0000};
         case TRICORE_INS_MOVH_A: // A[c] = {const16, 16’h0000};
         case TRICORE_INS_MTCR: // CR[const16] = D[a];
         case TRICORE_INS_MFCR: // D[c] = CR[const16];
         case TRICORE_INS_MOVU: // D[c] = zero_ext(const16);
+        case TRICORE_INS_LD_BUD: // EA = A[b] + sign_ext(off16); D[a] = zero_ext(M(EA, byte));
             ct = eOpConv::ZEXT_TRUNC;
             break;
         case TRICORE_INS_LDA_PINC: // A[c] = M(A[b], word); A[b] = A[b] + 4;
@@ -273,6 +295,8 @@ void Capstone2LlvmIrTranslatorTricore::translateLoad(cs_insn* i, cs_tricore* t, 
         case TRICORE_INS_MOVAD: //A[a] = D[b];
         case TRICORE_INS_MOVDA: //D[a] = A[b];
         case TRICORE_INS_MOVDD: //D[a] = D[b];
+        case TRICORE_INS_LD16A: //A[c] = M(A[b], word);
+        case TRICORE_INS_LD: // 3x op2
             break;
         default:
             assert(false);
@@ -306,18 +330,16 @@ void Capstone2LlvmIrTranslatorTricore::translateLoad09(cs_insn* i, cs_tricore* t
             storeOp(t->operands[0], op1, irb);
             break;
 
-        default:
-            assert(false);
-    }
-}
-
-void Capstone2LlvmIrTranslatorTricore::translateLdAbs(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
-    switch (i->id) {
-        case TRICORE_INS_LD:
+        case 0x16: // EA = A[b] + sign_ext(off10); A[a] = M(EA, word); A[b] = EA;
+        {
             op1 = loadOp(t->operands[1], irb);
-            storeOp(t->operands[0], op1, irb, eOpConv::THROW);
-            break;
+            storeOp(t->operands[0], op1, irb); ////A[a] = M(EA, word)
 
+            auto lea = t->operands[1];
+            lea.mem.lea = true;
+            storeRegister(lea.mem.base, loadOp(lea, irb), irb); //A[b] = EA
+            break;
+        }
         default:
             assert(false);
     }
@@ -357,8 +379,10 @@ void Capstone2LlvmIrTranslatorTricore::translateStore(cs_insn* i, cs_tricore* t,
     switch (i->id) {
         case TRICORE_INS_ST:    //EA = {off18[17:14], 14b'0, off18[13:0]};      M(EA, word) = A[a];
         case TRICORE_INS_STA:   //M(A[b], word) = A[a];
-        case TRICORE_INS_STD:   //M(A[b], word) = D[a];
         case TRICORE_INS_STB:   //M(A[b], byte) = D[a][7:0];
+        case TRICORE_INS_STBA:  //M(A[15] + zero_ext(off4), byte) = D[a][7:0];
+        case TRICORE_INS_ST_BA: //EA = A[b] + sign_ext(off16); M(EA, byte) = D[a][7:0];
+        case TRICORE_INS_STD:   //M(A[b], word) = D[a];
         case TRICORE_INS_STWA:  //EA = A[b] + sign_ext(off10); M(EA, word) = D[a]; A[b] = EA;
             ec = eOpConv::THROW;
             break;
@@ -471,14 +495,11 @@ void Capstone2LlvmIrTranslatorTricore::translate00(cs_insn* i, cs_tricore* t, ll
         case 0x00:
             break;
 
-        case 0x09:
+        case 0x09: //PC = {A[11] [31:1], 1’b0};
         {
-//             auto* sp = loadRegister(TRICORE_REG_SP, irb);
-//             auto* pt = llvm::PointerType::get(sp->getType(), 0);
-//             auto* addr = irb.CreateIntToPtr(sp, pt);
-//             auto* l = irb.CreateLoad(addr);
-//             generateReturnFunctionCall(irb, loadRegister(TRICORE_REG_D_2, irb));
-//             generateBranchFunctionCall(irb, loadRegister(TRICORE_REG_RA, irb));
+            auto* ra = loadRegister(TRICORE_REG_RA, irb);
+//             ra = irb.CreateAnd(ra, ~(~0 << 31) << 1);
+            generateReturnFunctionCall(i, irb, ra, false);
             break;
         }
 

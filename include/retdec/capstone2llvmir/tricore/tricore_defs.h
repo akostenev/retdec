@@ -290,9 +290,9 @@ typedef enum tricore_op_type {
 } tricore_op_type;
 
 typedef enum tricore_ext {
-    TRICORE_EXT_NOTHING = 0,
-    TRICORE_EXT_ZEXT,
-    TRICORE_EXT_SEXT,
+    TRICORE_EXT_THROW = 0,
+    TRICORE_EXT_ZEXT_TRUNC,
+    TRICORE_EXT_SEXT_TRUNC,
 } tricore_ext;
 
 typedef struct tricore_op_imm {
@@ -300,7 +300,7 @@ typedef struct tricore_op_imm {
     uint8_t sizeInBit; //sizeof val in bit
     tricore_ext ext;
 
-    tricore_op_imm(uint64_t imm, uint8_t sizeInBit = 32, tricore_ext ext = TRICORE_EXT_NOTHING) :
+    tricore_op_imm(uint64_t imm, uint8_t sizeInBit = 32, tricore_ext ext = TRICORE_EXT_THROW) :
             value(imm),
             sizeInBit(sizeInBit),
             ext(ext)
@@ -316,7 +316,7 @@ typedef struct tricore_op_mem {
     tricore_ext ext; // Extension if size < sizeof base
     bool lea;
 
-    tricore_op_mem(tricore_reg base, tricore_op_imm disp, uint8_t size = WORD, tricore_ext ext = TRICORE_EXT_NOTHING, bool lea = false) :
+    tricore_op_mem(tricore_reg base, tricore_op_imm disp, uint8_t size = WORD, tricore_ext ext = TRICORE_EXT_THROW, bool lea = false) :
             base(base),
             disp(disp),
             size(size),
@@ -340,9 +340,9 @@ typedef struct cs_tricore_op {
         type(TRICORE_OP_INVALID),
         extended(false) {};
 
-    cs_tricore_op(tricore_reg reg) :
+    cs_tricore_op(tricore_reg reg, bool extended = false) :
         type(TRICORE_OP_REG),
-        extended(false),
+        extended(extended),
         reg(reg) {};
 
     cs_tricore_op(tricore_op_imm imm) :
@@ -387,6 +387,7 @@ typedef enum tricore_insn {
     TRICORE_INS_ADDDD = 0x42,
     TRICORE_INS_ADDI = 0x1B,
     TRICORE_INS_ADDIH_A = 0x11,
+    TRICORE_INS_ADDSCA = 0x10,
 
     TRICORE_INS_BIT_OPERATIONS1 = 0x8F,
     TRICORE_INS_BIT_OPERATIONS2 = 0x0F,
@@ -399,6 +400,7 @@ typedef enum tricore_insn {
     TRICORE_INS_ISYNC = 0x0D,
 
     TRICORE_INS_J32 = 0x1D,
+    TRICORE_INS_JNEQ32 = 0x5F,
     TRICORE_INS_J16 = 0x3C,
     TRICORE_INS_JA = 0x9D,
     TRICORE_INS_JEQ_15_c = 0xDF,
@@ -451,11 +453,13 @@ typedef enum tricore_insn {
 
     TRICORE_INS_LD = 0x85,
     TRICORE_INS_LDA = 0xC8,
+    TRICORE_INS_LD16A = 0xD4,
     TRICORE_INS_LDA_PINC = 0xC4,
     TRICORE_INS_LDD = 0x44,
     TRICORE_INS_LD_HD = 0x8C,
     TRICORE_INS_LD_HD_PINC = 0x84, //Load half-word, post incr //TODO find better name
-    TRICORE_INS_LD_BUD = 0x0C,
+    TRICORE_INS_LD_BUD = 0x39,
+    TRICORE_INS_LD_BUD15 = 0x0C,
     TRICORE_INS_LDW = 0x19,
     TRICORE_INS_LD09 = 0x09,
 
@@ -478,6 +482,8 @@ typedef enum tricore_insn {
     TRICORE_INS_ST = 0xA5,
     TRICORE_INS_STA = 0xF4,
     TRICORE_INS_STB = 0x34,
+    TRICORE_INS_STBA = 0x28,
+    TRICORE_INS_ST_BA = 0xE9,
     TRICORE_INS_STD = 0x74,
     TRICORE_INS_STHW = 0xA4,
     TRICORE_INS_STW = 0x64,

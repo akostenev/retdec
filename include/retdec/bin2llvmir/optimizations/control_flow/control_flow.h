@@ -57,6 +57,11 @@ class ControlFlow : public llvm::ModulePass
 		bool runPowerpcReturn(AsmInstruction& ai);
 		bool runPowerpcCall(AsmInstruction& ai);
 
+                bool runTricore();
+                bool runTricoreFunction(llvm::Function* f);
+                bool runTricoreReturn(AsmInstruction& ai);
+                bool runTricoreCall(AsmInstruction& ai);
+
 		bool runGeneric();
 		bool runGenericFunction(llvm::Function* f);
 		bool runGenericBr(AsmInstruction& ai, llvm::CallInst* call);

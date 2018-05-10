@@ -86,6 +86,10 @@ bool ControlFlow::run()
 	{
 		changed |= runPowerpc();
 	}
+	else if (_config->getConfig().architecture.isTricore())
+        {
+                changed |= runTricore();
+        }
 
 	toReturn();
 	toCall();
@@ -1407,6 +1411,20 @@ llvm::CallInst* ControlFlow::transformToCall(
 			}
 		}
 	}
+        else if (_config->isTricore())
+        {
+                for (auto& i : ai)
+                {
+                        if (auto* s = dyn_cast<StoreInst>(&i))
+                        {
+                                if (s->getPointerOperand()->getName() == "a11")
+                                {
+                                        s->eraseFromParent();
+                                        break;
+                                }
+                        }
+                }
+        }
 
 	return call;
 }
@@ -1439,9 +1457,9 @@ llvm::GlobalVariable* ControlFlow::getReturnObject()
 	{
 		ret = _config->getLlvmRegister("r0");
 	}
-	else if (_config->getConfig().architecture.isTricore())
+	else if (_config->getConfig().architecture.isTricore()) // TODO check
         {
-                ret = _config->getLlvmRegister("a11");
+                ret = _config->getLlvmRegister("d2");
         }
 	assert(ret);
 	return ret;

@@ -83,6 +83,22 @@ void Capstone2LlvmIrTranslatorTricore::translateInstruction(cs_insn* i, llvm::IR
 
         (this->*f)(i, &t, irb);
     } else {
+
+        //Check if SRRS op format
+        fIt = _i2fm.find(i->id & 0b11111);
+        if (fIt != std::end(_i2fm)) {
+            i->id = i->id & 0b11111;
+            translateInstruction(i, irb);
+            return;
+        } else { //Check if BRN op format
+            fIt = _i2fm.find(i->id & 0b111111);
+            if (fIt != std::end(_i2fm)) {
+                i->id = i->id & 0b111111;
+                translateInstruction(i, irb);
+                return;
+            }
+        }
+
         std::cout << "Translation of unhandled instruction: " << i->id << std::endl;
         if (i->size == 4) {
             std::cout << static_cast<unsigned>(i->bytes[3]) << " " << static_cast<unsigned>(i->bytes[2]) << " " << static_cast<unsigned>(i->bytes[1]) << " " << static_cast<unsigned>(i->bytes[0]) << std::endl;
@@ -110,7 +126,16 @@ llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateBranchFunctionCall(cs_
 }
 
 llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateCallFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
-    return generateBranchFunctionCall(i, irb, t, relative);
+        auto* a1t = _callFunction->getArgumentList().front().getType();
+
+    if (relative) {
+        auto* pc = llvm::ConstantInt::get(getType(), i->address);
+        t = irb.CreateAdd(pc, t);
+    }
+
+    t = irb.CreateSExtOrTrunc(t, a1t);
+    _branchGenerated = irb.CreateCall(_callFunction, {t});
+    return _branchGenerated;
 }
 
 llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateCondBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* cond, llvm::Value* t, bool relative) {
@@ -154,7 +179,7 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
 
         case TRICORE_OP_IMM:
             switch (op.imm.ext) {
-                case TRICORE_EXT_SEXT:
+                case TRICORE_EXT_SEXT_TRUNC:
                     return llvm::ConstantInt::getSigned(ty, op.imm.value);
                     break;
 
@@ -167,7 +192,7 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
 
             llvm::Value* disp = nullptr;
             switch (op.mem.disp.ext) {
-                case TRICORE_EXT_SEXT:
+                case TRICORE_EXT_SEXT_TRUNC:
                     disp = llvm::ConstantInt::getSigned(ty, op.mem.disp.value);
                     break;
 
@@ -217,7 +242,7 @@ llvm::Instruction* Capstone2LlvmIrTranslatorTricore::storeOp(cs_tricore_op& op, 
 
             llvm::Value* disp = nullptr;
             switch (op.mem.disp.ext) {
-                case TRICORE_EXT_SEXT:
+                case TRICORE_EXT_SEXT_TRUNC:
                     disp = llvm::ConstantInt::getSigned(getType(), op.mem.disp.value);
                     break;
 
@@ -376,7 +401,8 @@ llvm::IntegerType* Capstone2LlvmIrTranslatorTricore::getType(uint8_t bitSize) {
 }
 
 llvm::Value* Capstone2LlvmIrTranslatorTricore::getCurrentPc(cs_insn* i) {
-    return getNextInsnAddress(i);
+//     return getNextInsnAddress(i);
+    return llvm::ConstantInt::get(getType(), i->address);
 }
 
 llvm::Value* Capstone2LlvmIrTranslatorTricore::getNextInsnAddress(cs_insn* i) {

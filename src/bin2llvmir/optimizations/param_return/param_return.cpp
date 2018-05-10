@@ -313,6 +313,19 @@ bool registerCanBeParameterAccordingToAbi(Config* _config, llvm::Value* val)
 			return false;
 		}
 	}
+	else if (_config->getConfig().architecture.isTricore())
+        {
+                static std::set<std::string> names =
+                    {   "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9",               "a12", "a13", "a14", "a15",
+                        "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15",
+                        "e0",       "e2",       "e4",       "e6",       "e8",       "e10",        "e12",        "e14",
+                        "p0",       "p2",       "p4",       "p6",       "p8",       "p10",        "p12",        "p14",
+                    };
+                if (names.find(val->getName()) == names.end())
+                {
+                        return false;
+                }
+        }
 
 	return true;
 }
@@ -1317,6 +1330,10 @@ void DataFlowEntry::applyToIrOrdinary()
 		{
 			retVal = _config->getLlvmRegister("r3");
 		}
+		else if (_config->getConfig().architecture.isTricore())
+                {
+                        retVal = _config->getLlvmRegister("d2");
+                }
 		if (retVal)
 		{
 			for (auto& e : retStores)
@@ -1345,6 +1362,8 @@ void DataFlowEntry::applyToIrOrdinary()
 				{"r0", "r1", "r2", "r3"};
 		static std::vector<std::string> mipsNames =
 				{"a0", "a1", "a2", "a3"};
+                static std::vector<std::string> tricoreNames =
+                                {"d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15"};
 		if (_config->getConfig().tools.isPspGcc())
 		{
 			mipsNames = {"a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3"};
@@ -1437,6 +1456,12 @@ void DataFlowEntry::applyToIrOrdinary()
 							stackOff.setUndefined();
 						}
 					}
+					else if (_config->getConfig().architecture.isTricore()) //TODO check
+                                        {
+                                                auto* r = _config->getLlvmRegister(tricoreNames[idx]);
+                                                auto* l = new LoadInst(r, "", p.first);
+                                                p.second.push_back(l);
+                                        }
 				}
 				++idx;
 			}
@@ -1490,6 +1515,9 @@ void DataFlowEntry::applyToIrVariadic()
 			{"r0", "r1", "r2", "r3"};
 	std::vector<std::string> mipsNames =
 			{"a0", "a1", "a2", "a3"};
+        std::vector<std::string> tricoreNames =
+                        {"d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15"};
+
 	if (_config->getConfig().tools.isPspGcc())
 	{
 		mipsNames = {"a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3"};
@@ -1696,6 +1724,31 @@ void DataFlowEntry::applyToIrVariadic()
 					off += sz;
 				}
 			}
+                        else if (_config->getConfig().architecture.isTricore()) //TODO check
+                        {
+                                if (aIdx < tricoreNames.size())
+                                {
+                                        auto* r = _module->getNamedGlobal(tricoreNames[aIdx]);
+                                        if (r)
+                                        {
+                                                args.push_back(r);
+                                        }
+                                        else
+                                        {
+                                            LOG << "\t\t TricoreNamedGlobalNotFound:" << llvmObjToString(r) << std::endl;
+                                        }
+                                }
+                                else
+                                {
+                                        auto* st = _config->getLlvmStackVariable(fnc, off);
+                                        if (st)
+                                        {
+                                                args.push_back(st);
+                                        }
+
+                                        off += sz;
+                                }
+                        }
 
 			++aIdx;
 		}
@@ -1751,6 +1804,10 @@ void DataFlowEntry::applyToIrVariadic()
 	{
 		retVal = _config->getLlvmRegister("r3");
 	}
+	else if (_config->getConfig().architecture.isTricore())
+        {
+                retVal = _config->getLlvmRegister("d2"); //TODO check
+        }
 	if (retVal)
 	{
 		for (auto& e : retStores)
@@ -2192,6 +2249,10 @@ void DataFlowEntry::setReturnType()
 	{
 		retVal = _config->getLlvmRegister("r3");
 	}
+        else if (_config->getConfig().architecture.isTricore()) //TODO check
+        {
+                retVal = _config->getLlvmRegister("d2");
+        }
 
 	retType = retVal ?
 			retVal->getType()->getPointerElementType() :

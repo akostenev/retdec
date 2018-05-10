@@ -541,6 +541,11 @@ bool Config::isMipsOrPic32() const
 	return  _configDB.architecture.isMips() || isPic32();
 }
 
+bool Config::isTricore() const
+{
+        return  _configDB.architecture.isTricore();
+}
+
 bool Config::isLlvmToAsmGlobalVariable(const llvm::Value* gv) const
 {
 	return gv == getLlvmToAsmGlobalVariable();

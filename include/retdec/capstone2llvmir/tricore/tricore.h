@@ -77,7 +77,6 @@ protected:
     llvm::CallInst* generateCondBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* cond, llvm::Value* t, bool relative = true);
     llvm::CallInst* generateReturnFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative = true);
 
-
     llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb);
     llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty);
     llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC);
@@ -103,7 +102,6 @@ protected:
 
     void translateLoad(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateLoad09(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
-    void translateLdAbs(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateShift(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 

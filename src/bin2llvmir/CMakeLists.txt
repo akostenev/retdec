@@ -20,6 +20,7 @@ set(BIN2LLVMIR_SOURCES
 	optimizations/control_flow/control_flow.cpp
 	optimizations/control_flow/mips.cpp
 	optimizations/control_flow/powerpc.cpp
+	optimizations/control_flow/tricore.cpp
 	optimizations/control_flow/x86.cpp
 	optimizations/ctor_dtor/ctor_dtor.cpp
 	optimizations/data_references/data_references.cpp

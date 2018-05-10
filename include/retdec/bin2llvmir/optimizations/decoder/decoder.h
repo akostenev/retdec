@@ -22,6 +22,7 @@
 #include "retdec/bin2llvmir/utils/ir_modifier.h"
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
 #include "retdec/capstone2llvmir/x86/x86.h"
+#include "retdec/capstone2llvmir/tricore/tricore.h"
 
 namespace retdec {
 namespace bin2llvmir {
