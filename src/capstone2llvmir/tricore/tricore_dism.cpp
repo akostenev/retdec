@@ -147,6 +147,8 @@ void dismSBR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             break;
 
         case TRICORE_INS_JZD: // if (D[b] == 0) then PC = PC + zero_ext(disp4) * 2;
+        case TRICORE_INS_JLEZD: // If (D[b] <= 0) then PC = PC + zero_ext(disp4) * 2;
+        case TRICORE_INS_JGEZD: //if (D[b] >= 0) then PC = PC + zero_ext(disp4) * 2;
             t->operands[0] = getRegD(s2);
             t->operands[1] = zExtImm<4>(disp4, 2);
             break;
@@ -174,6 +176,11 @@ void dismSC(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
     switch (i->id) {
         case TRICORE_INS_SUBA10: //A[10] = A[10] - zero_ext(const8);
             t->operands[0] = TRICORE_REG_A_10;
+            t->operands[1] = zExtImm<8>(const8);
+            break;
+
+        case TRICORE_INS_MOVD15: //D[15] = zero_ext(const8);
+            t->operands[0] = TRICORE_REG_D_15;
             t->operands[1] = zExtImm<8>(const8);
             break;
 
@@ -277,11 +284,11 @@ void dismSRC(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             break;
 
         case TRICORE_INS_ADDD_c: //D[a] = sign_ext(const4);
-        case TRICORE_INS_MOVD_A: //D[a] = sign_ext(const4);
+        case TRICORE_INS_MOVD: //D[a] = sign_ext(const4);
         case TRICORE_INS_SHAD: // ... to long //TODO check
         case TRICORE_INS_SHD: //shift_count = sign_ext(const4[3:0]); D[a] = (shift_count >= 0) ? D[a] << shift_count : D[a] >> (-shift_count);
             t->operands[0] = getRegD(s1d);
-            t->operands[1] = zExtImm<4>(const4);
+            t->operands[1] = sExtImm<4>(const4);
             break;
 
         default:
@@ -746,6 +753,7 @@ void dismRC(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 
     switch (i->id) {
         case TRICORE_INS_BIT_OPERATIONS1:
+        case TRICORE_INS_CMP:
             // 0AH : D[c] = D[a] | zero_ext(const9);
             t->operands[0] = getRegD(d);
             t->operands[1] = getRegD(s1);
@@ -858,7 +866,33 @@ void dismRR1(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 }
 
 void dismRR2(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
+    t->format = TRICORE_OF_RR2;
+    t->op_count = 3;
+    t->op2 = bitRange<16, 27>(b).to_ulong();
 
+    auto s1 = bitRange<8, 11>(b).to_ulong();
+    auto s2 = bitRange<12, 15>(b).to_ulong();
+    auto d = bitRange<28, 31>(b).to_ulong();
+
+    switch (i->id) {
+        case TRICORE_INS_MUL: //result = D[a] * D[b]; // unsigned D[c] = suov(result, 32);
+            t->operands[0] = getRegD(d);
+            t->operands[1] = getRegD(s1);
+            t->operands[2] = getRegD(s2);
+
+            switch (t->op2) {
+                case 0x6a: //result = D[a] * D[b]; E[c] = result[63:0];
+                    t->operands[0].extended = true;
+                    break;
+
+                default:
+                    break;
+            }
+            break;
+
+        default:
+            assert(false);
+    }
 }
 
 void dismRRPW(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
@@ -919,8 +953,11 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_LOOP, &dismSBR},
     {TRICORE_INS_JZD, &dismSBR},
     {TRICORE_INS_JZA_16, &dismSBR},
+    {TRICORE_INS_JLEZD, &dismSBR},
+    {TRICORE_INS_JGEZD, &dismSBR},
 
     {TRICORE_INS_SUBA10, &dismSC},
+    {TRICORE_INS_MOVD15, &dismSC},
 
     {TRICORE_INS_LDA_PINC, &dismSLR},
     {TRICORE_INS_LDD, &dismSLR},
@@ -935,7 +972,7 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_ADDA, &dismSRC},
     {TRICORE_INS_MOVA, &dismSRC},
     {TRICORE_INS_ADDD_c, &dismSRC},
-    {TRICORE_INS_MOVD_A, &dismSRC},
+    {TRICORE_INS_MOVD, &dismSRC},
     {TRICORE_INS_SHAD, &dismSRC},
     {TRICORE_INS_SHD, &dismSRC},
 
@@ -987,6 +1024,7 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_JNEQ32, &dismBRR},
 
     {TRICORE_INS_BIT_OPERATIONS1, &dismRC},
+    {TRICORE_INS_CMP, &dismRC},
 
     {TRICORE_INS_MOVD_C16, &dismRLC},
     {TRICORE_INS_MOVU, &dismRLC},
@@ -998,6 +1036,8 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_ADDIH_A, &dismRLC},
 
     {TRICORE_INS_BIT_OPERATIONS2, &dismRR},
+
+    {TRICORE_INS_MUL, &dismRR2},
 
     {TRICORE_INS_EXTR, &dismRRPW},
 

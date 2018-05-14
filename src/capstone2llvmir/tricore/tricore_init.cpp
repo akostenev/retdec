@@ -287,6 +287,8 @@ std::map<
         {TRICORE_INS_CALL16, &Capstone2LlvmIrTranslatorTricore::translateCall},
         {TRICORE_INS_CALL32, &Capstone2LlvmIrTranslatorTricore::translateCall},
 
+        {TRICORE_INS_CMP, &Capstone2LlvmIrTranslatorTricore::translateCmp},
+
         {TRICORE_INS_EXTR, &Capstone2LlvmIrTranslatorTricore::translateExtr},
 
         {TRICORE_INS_ISYNC, &Capstone2LlvmIrTranslatorTricore::translateIgnore},
@@ -303,6 +305,8 @@ std::map<
         {TRICORE_INS_JNZ_D15, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JNZT, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JZD, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
+        {TRICORE_INS_JGEZD, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
+        {TRICORE_INS_JLEZD, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JZ_D15, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JZA_16, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
 
@@ -328,11 +332,14 @@ std::map<
         {TRICORE_INS_MOVAD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVDA, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVDD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
-        {TRICORE_INS_MOVD_A, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_MOVD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+        {TRICORE_INS_MOVD15, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVD_C16, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVH, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVH_A, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_MOVU, &Capstone2LlvmIrTranslatorTricore::translateLoad},
+
+        {TRICORE_INS_MUL, &Capstone2LlvmIrTranslatorTricore::translateMul},
 
         {TRICORE_INS_SHAD, &Capstone2LlvmIrTranslatorTricore::translateShift},
         {TRICORE_INS_SHD, &Capstone2LlvmIrTranslatorTricore::translateShift},

@@ -13,7 +13,7 @@
 #include "retdec/utils/string.h"
 #include "retdec/bin2llvmir/optimizations/decoder/decoder.h"
 #include "retdec/bin2llvmir/utils/defs.h"
-#define debug_enabled false
+#define debug_enabled true
 #include "retdec/llvm-support/utils.h"
 
 using namespace retdec::llvm_support;
@@ -1551,38 +1551,57 @@ LOG << "===========> SWITCH MODE #2 " << _currentMode << " -> " << jt.mode << st
 			}
 		}
 
-                if (_config->getConfig().architecture.isTricore())
-                for (auto ai = first; ; ai = ai.getNext())
-                {
-                        if (tRes.branchCall != nullptr)
-                        {
-                                auto* target = tRes.branchCall->getArgOperand(0);
-                                Address imm;
-                                if (llvm::ConstantInt* CI = dyn_cast<llvm::ConstantInt>(target))
-                                {
-                                        imm = CI->getSExtValue();
-
-                                        if (looksLikeValidJumpTarget(imm))
-                                        {
-                                                _jumpTargets.push(
-                                                                _config,
-                                                                imm,
-                                                                JumpTarget::eType::CODE_POINTER_FROM_DATA,
-                                                                _currentMode);
-
-                                                LOG << "\t\tpush code pointer @ " << ai.getAddress()
-                                                                << " -> " << std::hex << imm
-                                                                << std::endl;
-                                        }
-                                }
-                        }
-
-                        if (ai == last)
-                        {
-                                break;
-                        }
-                }
-
+//                 if (_config->getConfig().architecture.isTricore())
+//                 {
+//                     if (tRes.branchCall != nullptr)
+//                     {
+//                             auto* target = tRes.branchCall->getArgOperand(0);
+//                             Address imm;
+//                             if (llvm::ConstantInt* CI = dyn_cast<llvm::ConstantInt>(target))
+//                             {
+//                                     imm = CI->getSExtValue();
+//                                     _jumpTargets.push(
+//                                             _config,
+//                                             imm,
+//                                             JumpTarget::eType::CODE_POINTER_FROM_DATA,
+//                                             _currentMode);
+//
+//                                     LOG << "\t\tpush code pointer -> " <<
+//                                             std::hex << imm << std::endl;
+//                             }
+//                     }
+// 
+//                 for (auto ai = first; ; ai = ai.getNext())
+//                 {
+//                         if (tRes.branchCall != nullptr)
+//                         {
+//                                 auto* target = tRes.branchCall->getArgOperand(0);
+//                                 Address imm;
+//                                 if (llvm::ConstantInt* CI = dyn_cast<llvm::ConstantInt>(target))
+//                                 {
+//                                         imm = CI->getSExtValue();
+//
+//                                         if (looksLikeValidJumpTarget(imm))
+//                                         {
+//                                                 _jumpTargets.push(
+//                                                                 _config,
+//                                                                 imm,
+//                                                                 JumpTarget::eType::CODE_POINTER_FROM_DATA,
+//                                                                 _currentMode);
+//
+//                                                 LOG << "\t\tpush code pointer @ " << ai.getAddress()
+//                                                                 << " -> " << std::hex << imm
+//                                                                 << std::endl;
+//                                         }
+//                                 }
+//                         }
+//
+//                         if (ai == last)
+//                         {
+//                                 break;
+//                         }
+//                 }
+//                 }
 		cs_insn* lastCs = last.getCapstoneInsn();
 
 		if (jt.type == JumpTarget::eType::DELAY_SLOT)

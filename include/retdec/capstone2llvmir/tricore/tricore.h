@@ -94,6 +94,8 @@ protected:
 
     void translateCall(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
+    void translateCmp(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+
     void translateExtr(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
@@ -102,6 +104,8 @@ protected:
 
     void translateLoad(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateLoad09(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+
+    void translateMul(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateShift(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 

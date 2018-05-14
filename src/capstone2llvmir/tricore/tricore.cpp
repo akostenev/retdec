@@ -99,7 +99,7 @@ void Capstone2LlvmIrTranslatorTricore::translateInstruction(cs_insn* i, llvm::IR
             }
         }
 
-        std::cout << "Translation of unhandled instruction: " << i->id << std::endl;
+        std::cout << "Translation of unhandled instruction: " << i->id << " @ " << std::hex << i->address << std::endl;
         if (i->size == 4) {
             std::cout << static_cast<unsigned>(i->bytes[3]) << " " << static_cast<unsigned>(i->bytes[2]) << " " << static_cast<unsigned>(i->bytes[1]) << " " << static_cast<unsigned>(i->bytes[0]) << std::endl;
         } else if (i->size == 2) {
