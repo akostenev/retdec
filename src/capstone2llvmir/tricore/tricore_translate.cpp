@@ -74,10 +74,10 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations1(cs_insn* i, cs_tr
 
             uint64_t const9From5To0 = t->operands[2].imm.value & 0b111111;
             if (const9From5To0 >> 5 & 1) { //msb is set -> -const9[5:0]
-                const9From5To0 = const9From5To0 - 32;
+                const9From5To0 = (const9From5To0 ^ 0b111111) + 1;
 
                 auto* testBit31 = irb.CreateAnd(op1, 1 << 31);
-                auto* op1Bit31Set = irb.CreateICmpEQ(testBit31, llvm::ConstantInt::get(op1->getType(), 1));
+                auto* op1Bit31Set = irb.CreateICmpUGT(testBit31, llvm::ConstantInt::get(op1->getType(), 0));
 
                 auto bodyIrb = generateIfThenElse(op1Bit31Set, irb); //first if, second else
 
@@ -87,6 +87,7 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations1(cs_insn* i, cs_tr
                 storeOp(t->operands[0], bodyIrb.first.CreateOr(mskIf, bodyIrb.first.CreateLShr(op1, const9From5To0)), bodyIrb.first, eOpConv::THROW);
 
                 storeOp(t->operands[0], bodyIrb.second.CreateLShr(op1, const9From5To0), bodyIrb.second, eOpConv::THROW);
+                //TODO Carry Flag
                 return;
             } else {
                 //TODO Carry Flag
@@ -166,6 +167,52 @@ void Capstone2LlvmIrTranslatorTricore::translateCmp(cs_insn* i, cs_tricore* t, l
     }
 
     storeOp(t->operands[0], v, irb, eOpConv::ZEXT_TRUNC);
+}
+
+void Capstone2LlvmIrTranslatorTricore::translateDiv(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
+
+    switch (i->id) {
+        case TRICORE_INS_DIV:
+            switch (t->op2) {
+                case 0x1A: //DVINITE E[c] = sign_ext(D[a]);
+                    op1 = loadOp(t->operands[1], irb);
+                    storeOp(t->operands[0], op1, irb, eOpConv::SEXT_TRUNC);
+                    break;
+
+                default:
+                    assert(false);
+            }
+            break;
+
+        case TRICORE_INS_DVSTEP:
+            switch (t->op2) {
+                case 0x0F:
+                {
+                    op1 = loadOp(t->operands[1], irb); //D[b]
+                    op2 = loadOp(t->operands[2], irb); //E[d]
+                    op1 = irb.CreateZExt(op1, op2->getType());
+
+                    auto* div = irb.CreateUDiv(op2, op1);
+                    div = irb.CreateTrunc(div, getType());
+                    storeRegister(t->operands[0].reg, div, irb);
+
+                    auto* rem = irb.CreateURem(op2, op1);
+                    rem = irb.CreateTrunc(rem, getType());
+                    storeRegister(t->operands[0].reg + 4, rem, irb);
+
+                    break;
+                }
+                case 0x0D: //DVADJ
+                    break;
+
+                default:
+                    assert(false);
+            }
+            break;
+
+        default:
+            assert(false);
+    }
 }
 
 void Capstone2LlvmIrTranslatorTricore::translateExtr(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {

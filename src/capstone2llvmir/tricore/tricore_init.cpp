@@ -289,6 +289,9 @@ std::map<
 
         {TRICORE_INS_CMP, &Capstone2LlvmIrTranslatorTricore::translateCmp},
 
+        {TRICORE_INS_DIV, &Capstone2LlvmIrTranslatorTricore::translateDiv},
+        {TRICORE_INS_DVSTEP, &Capstone2LlvmIrTranslatorTricore::translateDiv},
+
         {TRICORE_INS_EXTR, &Capstone2LlvmIrTranslatorTricore::translateExtr},
 
         {TRICORE_INS_ISYNC, &Capstone2LlvmIrTranslatorTricore::translateIgnore},

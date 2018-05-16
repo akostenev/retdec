@@ -856,6 +856,20 @@ void dismRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             t->operands[2] = getRegD(s2);
             break;
 
+        case TRICORE_INS_DIV:
+            t->operands[0] = getRegD(d);
+            t->operands[1] = getRegD(s1);
+            t->operands[2] = getRegD(s2);
+
+            switch (t->op2) {
+                case 0x1A:
+                    t->operands[0].extended = true;
+
+                default:
+                    break;
+            }
+            break;
+
         default:
             assert(false && TRICORE_OF_RR);
     }
@@ -920,7 +934,26 @@ void dismRRPW(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 }
 
 void dismRRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
+    t->format = TRICORE_OF_RRR;
+    t->op_count = 4;
+    t->op2 = bitRange<20, 23>(b).to_ulong();
+    t->n = bitRange<16, 17>(b).to_ulong();
 
+//     auto s1 = bitRange<8, 11>(b).to_ulong();
+    auto s2 = bitRange<12, 15>(b).to_ulong();
+    auto s3 = bitRange<24, 27>(b).to_ulong();
+    auto d = bitRange<28, 31>(b).to_ulong();
+
+    switch (i->id) {
+        case TRICORE_INS_DVSTEP:
+            t->operands[0] = getRegD(d);
+            t->operands[1] = getRegD(s2);
+            t->operands[2] = {getRegD(s3), true};
+            break;
+
+        default:
+            assert(false);
+    }
 }
 
 void dismRRR1(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
@@ -1036,10 +1069,13 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_ADDIH_A, &dismRLC},
 
     {TRICORE_INS_BIT_OPERATIONS2, &dismRR},
+    {TRICORE_INS_DIV, &dismRR},
 
     {TRICORE_INS_MUL, &dismRR2},
 
     {TRICORE_INS_EXTR, &dismRRPW},
+
+    {TRICORE_INS_DVSTEP, &dismRRR},
 
     {TRICORE_INS_ISYNC, &dismSYS},
 

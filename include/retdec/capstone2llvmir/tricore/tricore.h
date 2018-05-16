@@ -96,6 +96,8 @@ protected:
 
     void translateCmp(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
+    void translateDiv(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+
     void translateExtr(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);

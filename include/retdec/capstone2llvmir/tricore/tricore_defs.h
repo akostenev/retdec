@@ -397,6 +397,9 @@ typedef enum tricore_insn {
 
     TRICORE_INS_CMP = 0x8B,
 
+    TRICORE_INS_DIV = 0x4B,
+    TRICORE_INS_DVSTEP = 0x6B,
+
     TRICORE_INS_EXTR = 0x37,
 
     TRICORE_INS_ISYNC = 0x0D,
