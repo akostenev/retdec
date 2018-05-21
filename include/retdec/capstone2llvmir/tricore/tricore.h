@@ -67,6 +67,7 @@ protected:
 protected:
     //returns e.g. E[0] for D[0], E2 for D[2]
     uint32_t regToExtendedReg(uint32_t r) const;
+    std::pair<uint32_t, uint32_t> extendedRegToRegs(uint32_t r) const;
 
     llvm::IntegerType* getType(uint8_t bitSize = 32);
     llvm::Value* getCurrentPc(cs_insn* i);
@@ -88,6 +89,8 @@ protected:
     static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>&)> _i2fm;
     void translateAdd(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
+    void translateAnd(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+
     void translateBitOperations1(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateBitOperations2(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateBitOperationsD(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
@@ -105,6 +108,7 @@ protected:
     void translateConditionalJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateLoad(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateConditionalLoad(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateLoad09(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateMul(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
@@ -117,6 +121,7 @@ protected:
     void translateSub(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translate00(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translate0B(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateIgnore(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 };
 

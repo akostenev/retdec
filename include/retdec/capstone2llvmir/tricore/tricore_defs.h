@@ -389,11 +389,15 @@ typedef enum tricore_insn {
     TRICORE_INS_ADDIH_A = 0x11,
     TRICORE_INS_ADDSCA = 0x10,
 
+    TRICORE_INS_ANDD15 = 0x16,
+
     TRICORE_INS_BIT_OPERATIONS1 = 0x8F,
     TRICORE_INS_BIT_OPERATIONS2 = 0x0F,
 
     TRICORE_INS_CALL16 = 0x5C,
     TRICORE_INS_CALL32 = 0x6D,
+
+    TRICORE_INS_CMOVD = 0x2A,
 
     TRICORE_INS_CMP = 0x8B,
 
@@ -401,6 +405,8 @@ typedef enum tricore_insn {
     TRICORE_INS_DVSTEP = 0x6B,
 
     TRICORE_INS_EXTR = 0x37,
+
+    TRICORE_INS_FCALL = 0x61,
 
     TRICORE_INS_ISYNC = 0x0D,
 
@@ -462,13 +468,16 @@ typedef enum tricore_insn {
     TRICORE_INS_LDA = 0xC8,
     TRICORE_INS_LD16A = 0xD4,
     TRICORE_INS_LDA_PINC = 0xC4,
-    TRICORE_INS_LDD = 0x44,
+    TRICORE_INS_LDD_PINC = 0x44,
     TRICORE_INS_LD_HD = 0x8C,
     TRICORE_INS_LD_HD_PINC = 0x84, //Load half-word, post incr //TODO find better name
     TRICORE_INS_LD_BUD = 0x39,
     TRICORE_INS_LD_BUD15 = 0x0C,
     TRICORE_INS_LDW = 0x19,
     TRICORE_INS_LD09 = 0x09,
+    TRICORE_INS_LDD = 0x54,
+
+    TRICORE_INS_0B = 0x0B,
 
     TRICORE_INS_LOOP = 0xFC,
 
@@ -484,7 +493,8 @@ typedef enum tricore_insn {
     TRICORE_INS_MOVH_A = 0x91,
     TRICORE_INS_MOVU = 0xBB,
 
-    TRICORE_INS_MUL = 0x73,
+    TRICORE_INS_MULD = 0x73,
+    TRICORE_INS_MULE = 0x53,
 
     TRICORE_INS_SHAD = 0x86,
     TRICORE_INS_SHD = 0x06,
@@ -502,6 +512,7 @@ typedef enum tricore_insn {
 
     TRICORE_INS_SUBA10 = 0x20,
     TRICORE_INS_SUBD = 0xA2,
+    TRICORE_INS_SUBD15 = 0x5A,
 
     TRICORE_INS_MFCR = 0x4D,
     TRICORE_INS_MTCR = 0xCD,

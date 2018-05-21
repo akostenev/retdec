@@ -178,15 +178,23 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
             return loadRegister(op.reg, irb, op.extended);
 
         case TRICORE_OP_IMM:
+        {
+            auto* immValue = llvm::ConstantInt::get(llvm::Type::getIntNTy(_module->getContext(), op.imm.sizeInBit), op.imm.value);
             switch (op.imm.ext) {
                 case TRICORE_EXT_SEXT_TRUNC:
-                    return llvm::ConstantInt::getSigned(ty, op.imm.value);
-                    break;
+                    return irb.CreateSExtOrTrunc(immValue, ty);
 
-                default: //ZEXT, NOTHING
-                    return llvm::ConstantInt::get(ty, op.imm.value);
+                case TRICORE_EXT_ZEXT_TRUNC:
+                    return irb.CreateZExtOrTrunc(immValue, ty);
+
+                default:
+                    if (immValue->getType() == ty) {
+                        return immValue;
+                    } else {
+                        assert(false);
+                    }
             }
-
+        }
         case TRICORE_OP_MEM: {
             auto* baseR = loadRegister(op.mem.base, irb, op.extended);
 
@@ -292,7 +300,7 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadRegister(uint32_t r, llvm::IR
 
     auto* llvmReg = getRegister(r);
     if (llvmReg == nullptr) {
-        throw Capstone2LlvmIrError("loadRegister() unhandled reg.");
+        assert(false && "loadRegister() unhandled reg.");
     }
     return irb.CreateLoad(llvmReg);
 }
@@ -303,31 +311,75 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
         return nullptr;
     }
 
+    std::pair<uint32_t, uint32_t> pRegs;
+//     uint32_t extR = 0;
     if (extended) {
+        pRegs = extendedRegToRegs(r);
         r = regToExtendedReg(r);
     }
+//     else {
+//         extR = regToExtendedReg(r);
+//         if (extR != TRICORE_REG_INVALID) {
+//             pRegs = extendedRegToRegs(extR);
+//         }
+//     }
 
     auto* llvmReg = getRegister(r);
     auto* regT = getRegisterType(r);
-    if (llvmReg == nullptr) {
-        throw Capstone2LlvmIrError("storeRegister() unhandled reg.");
-    }
-
+    assert(llvmReg != nullptr && "storeRegister() unhandled reg.");
     if (val->getType() != llvmReg->getValueType()) {
         switch (ct) {
             case eOpConv::SEXT_TRUNC:
                 val = irb.CreateSExtOrTrunc(val, regT);
                 break;
+
             case eOpConv::ZEXT_TRUNC:
                 val = irb.CreateZExtOrTrunc(val, regT);
                 break;
+
 //             case eOpConv::FP_CAST:
 //                 val = irb.CreateFPCast(val, regT);
 //                 break;
+
             default:
-                throw Capstone2LlvmIrError("Unhandled eOpConv type.");
+                assert(false && "Unhandled eOpConv type.");
         }
     }
+
+    if (extended) { //update low and high registers
+        auto* lReg = getRegister(pRegs.first);
+        auto* lType = getRegisterType(pRegs.first);
+
+        auto* hReg = getRegister(pRegs.second);
+        auto* hType = getRegisterType(pRegs.second);
+
+        auto* lVal = irb.CreateTrunc(val, lType);
+        auto* hVal = irb.CreateTrunc(irb.CreateLShr(val, hType->getIntegerBitWidth()), hType);
+
+        irb.CreateStore(lVal, lReg);
+        irb.CreateStore(hVal, hReg);
+
+    }
+//     else if (extR != TRICORE_REG_INVALID) { // update extended register
+//         auto* extLlvmReg = loadRegister(extR, irb);
+//         auto* extVal = irb.CreateZExt(val, extLlvmReg->getType());
+//
+//         if (pRegs.first == r) {
+//             auto* maskL = llvm::ConstantInt::get(extLlvmReg->getType(), 0xffffffff00000000);
+//             auto* andL = irb.CreateAnd(extLlvmReg, maskL);
+//             auto* orL = irb.CreateOr(andL, extVal);
+//             irb.CreateStore(orL, getRegister(extR));
+//
+//         } else if (pRegs.second == r) {
+//             auto* maskH = llvm::ConstantInt::get(extLlvmReg->getType(), 0x0000000ffffffff);
+//             auto* andH = irb.CreateAnd(extLlvmReg, maskH);
+//             auto* orH = irb.CreateOr(andH, irb.CreateShl(extVal, 32));
+//             irb.CreateStore(orH, getRegister(extR));
+//
+//         } else {
+//             assert(false);
+//         }
+//     }
 
     return irb.CreateStore(val, llvmReg);
 }
@@ -351,42 +403,97 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::generateSpecialAsm2LlvmInstr(
 
 uint32_t Capstone2LlvmIrTranslatorTricore::regToExtendedReg(uint32_t r) const {
     switch (r) {
-        case TRICORE_REG_D_0: return TRICORE_REG_E_0;
+        case TRICORE_REG_D_0:
         case TRICORE_REG_D_1: return TRICORE_REG_E_0;
-        case TRICORE_REG_D_2: return TRICORE_REG_E_2;
+        case TRICORE_REG_D_2:
         case TRICORE_REG_D_3: return TRICORE_REG_E_2;
-        case TRICORE_REG_D_4: return TRICORE_REG_E_4;
+        case TRICORE_REG_D_4:
         case TRICORE_REG_D_5: return TRICORE_REG_E_4;
-        case TRICORE_REG_D_6: return TRICORE_REG_E_6;
+        case TRICORE_REG_D_6:
         case TRICORE_REG_D_7: return TRICORE_REG_E_6;
-        case TRICORE_REG_D_8: return TRICORE_REG_E_8;
+        case TRICORE_REG_D_8:
         case TRICORE_REG_D_9: return TRICORE_REG_E_8;
-        case TRICORE_REG_D_10: return TRICORE_REG_E_10;
+        case TRICORE_REG_D_10:
         case TRICORE_REG_D_11: return TRICORE_REG_E_10;
-        case TRICORE_REG_D_12: return TRICORE_REG_E_12;
+        case TRICORE_REG_D_12:
         case TRICORE_REG_D_13: return TRICORE_REG_E_12;
-        case TRICORE_REG_D_14: return TRICORE_REG_E_14;
+        case TRICORE_REG_D_14:
         case TRICORE_REG_D_15: return TRICORE_REG_E_14;
 
-        case TRICORE_REG_A_0: return TRICORE_REG_P_0;
+        case TRICORE_REG_A_0:
         case TRICORE_REG_A_1: return TRICORE_REG_P_0;
-        case TRICORE_REG_A_2: return TRICORE_REG_P_2;
+        case TRICORE_REG_A_2:
         case TRICORE_REG_A_3: return TRICORE_REG_P_2;
-        case TRICORE_REG_A_4: return TRICORE_REG_P_4;
+        case TRICORE_REG_A_4:
         case TRICORE_REG_A_5: return TRICORE_REG_P_4;
-        case TRICORE_REG_A_6: return TRICORE_REG_P_6;
+        case TRICORE_REG_A_6:
         case TRICORE_REG_A_7: return TRICORE_REG_P_6;
-        case TRICORE_REG_A_8: return TRICORE_REG_P_8;
+        case TRICORE_REG_A_8:
         case TRICORE_REG_A_9: return TRICORE_REG_P_8;
-        case TRICORE_REG_A_10: return TRICORE_REG_P_10;
+        case TRICORE_REG_A_10:
         case TRICORE_REG_A_11: return TRICORE_REG_P_10;
-        case TRICORE_REG_A_12: return TRICORE_REG_P_12;
+        case TRICORE_REG_A_12:
         case TRICORE_REG_A_13: return TRICORE_REG_P_12;
-        case TRICORE_REG_A_14: return TRICORE_REG_P_14;
+        case TRICORE_REG_A_14:
         case TRICORE_REG_A_15: return TRICORE_REG_P_14;
 
-        default:
-            assert(false);
+        default: return TRICORE_REG_INVALID;
+    }
+}
+
+std::pair<uint32_t, uint32_t> Capstone2LlvmIrTranslatorTricore::extendedRegToRegs(uint32_t r) const {
+    switch (r) {
+        case TRICORE_REG_D_0:
+        case TRICORE_REG_D_1:
+        case TRICORE_REG_E_0: return std::make_pair(TRICORE_REG_D_0, TRICORE_REG_D_1);
+        case TRICORE_REG_D_2:
+        case TRICORE_REG_D_3:
+        case TRICORE_REG_E_2: return std::make_pair(TRICORE_REG_D_2, TRICORE_REG_D_3);
+        case TRICORE_REG_D_4:
+        case TRICORE_REG_D_5:
+        case TRICORE_REG_E_4: return std::make_pair(TRICORE_REG_D_4, TRICORE_REG_D_5);
+        case TRICORE_REG_D_6:
+        case TRICORE_REG_D_7:
+        case TRICORE_REG_E_6: return std::make_pair(TRICORE_REG_D_6, TRICORE_REG_D_7);
+        case TRICORE_REG_D_8:
+        case TRICORE_REG_D_9:
+        case TRICORE_REG_E_8: return std::make_pair(TRICORE_REG_D_8, TRICORE_REG_D_9);
+        case TRICORE_REG_D_10:
+        case TRICORE_REG_D_11:
+        case TRICORE_REG_E_10: return std::make_pair(TRICORE_REG_D_10, TRICORE_REG_D_11);
+        case TRICORE_REG_D_12:
+        case TRICORE_REG_D_13:
+        case TRICORE_REG_E_12: return std::make_pair(TRICORE_REG_D_12, TRICORE_REG_D_13);
+        case TRICORE_REG_D_14:
+        case TRICORE_REG_D_15:
+        case TRICORE_REG_E_14: return std::make_pair(TRICORE_REG_D_14, TRICORE_REG_D_15);
+
+        case TRICORE_REG_A_0:
+        case TRICORE_REG_A_1:
+        case TRICORE_REG_P_0: return std::make_pair(TRICORE_REG_A_0, TRICORE_REG_A_1);
+        case TRICORE_REG_A_2:
+        case TRICORE_REG_A_3:
+        case TRICORE_REG_P_2: return std::make_pair(TRICORE_REG_A_2, TRICORE_REG_A_3);
+        case TRICORE_REG_A_4:
+        case TRICORE_REG_A_5:
+        case TRICORE_REG_P_4: return std::make_pair(TRICORE_REG_A_4, TRICORE_REG_A_5);
+        case TRICORE_REG_A_6:
+        case TRICORE_REG_A_7:
+        case TRICORE_REG_P_6: return std::make_pair(TRICORE_REG_A_6, TRICORE_REG_A_7);
+        case TRICORE_REG_A_8:
+        case TRICORE_REG_A_9:
+        case TRICORE_REG_P_8: return std::make_pair(TRICORE_REG_A_8, TRICORE_REG_A_9);
+        case TRICORE_REG_A_10:
+        case TRICORE_REG_A_11:
+        case TRICORE_REG_P_10: return std::make_pair(TRICORE_REG_A_10, TRICORE_REG_A_11);
+        case TRICORE_REG_A_12:
+        case TRICORE_REG_A_13:
+        case TRICORE_REG_P_12: return std::make_pair(TRICORE_REG_A_12, TRICORE_REG_A_13);
+        case TRICORE_REG_A_14:
+        case TRICORE_REG_A_15:
+        case TRICORE_REG_P_14: return std::make_pair(TRICORE_REG_A_14, TRICORE_REG_A_15);
+
+        default: assert(false);
     }
 }
 
@@ -442,8 +549,7 @@ std::string Capstone2LlvmIrTranslatorTricore::getRegisterName(uint32_t r) const 
     if (fIt != _reg2name.end()) {
         return fIt->second;
     } else {
-        throw Capstone2LlvmIrError(
-            "Missing name for register number: " + std::to_string(r));
+        assert(false); // & "Missing name for register number: " + std::to_string(r));
     }
 }
 
