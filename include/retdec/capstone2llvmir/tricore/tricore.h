@@ -58,6 +58,7 @@ protected:
     llvm::Value* op1 = nullptr;
     llvm::Value* op2 = nullptr;
     llvm::Value* op3 = nullptr;
+    llvm::Value* op4 = nullptr;
 
     // TODO: This is a hack, sometimes we need cs_insn deep in helper
     // methods like @c loadRegister() where it is hard to propagate it.
@@ -123,6 +124,7 @@ protected:
     void translate00(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translate0B(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateIgnore(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateInsertBit(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 };
 
 } // namespace capstone2llvmir

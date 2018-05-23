@@ -242,19 +242,29 @@ void Capstone2LlvmIrTranslatorTricore::translateDiv(cs_insn* i, cs_tricore* t, l
 
 void Capstone2LlvmIrTranslatorTricore::translateExtr(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
     op1 = loadOp(t->operands[1], irb); //D[a]
-    op2 = loadOp(t->operands[2], irb); //pos
-    op3 = loadOp(t->operands[3], irb); //witdth
+    op3 = loadOp(t->operands[3], irb); //pos
 
     llvm::Value* extr = nullptr;
     eOpConv ct = eOpConv::THROW;
     switch (t->op2) {
+        case 0x00:
+        {
+            //mask = (2^width -1) << pos;
+            //D[c] = (D[a] & ~mask) | ((D[b] << pos) & mask);
+            //If pos + width > 32, then the result is undefined.
+            op2 = loadOp(t->operands[2], irb); //D[b]
+            llvm::Value* mask = llvm::ConstantInt::get(getType(), ~(~0 << t->operands[4].imm.value));
+            mask = irb.CreateShl(mask, op3);
+            extr = irb.CreateOr(irb.CreateAnd(op1, irb.CreateNot(mask)), irb.CreateAnd(irb.CreateShl(op2, op3), mask));
+            break;
+        }
         case 0x2: //D[c] = sign_ext((D[a] >> pos)[width-1:0]); If pos + width > 32 or if width = 0, then the results are undefined.
-            extr = irb.CreateAnd(irb.CreateLShr(op1, op2), ~(~0 << t->operands[3].imm.value));
+            extr = irb.CreateAnd(irb.CreateLShr(op1, op3), ~(~0 << t->operands[4].imm.value));
             ct = eOpConv::SEXT_TRUNC;
             break;
 
         case 0x3: //D[c] = zero_ext((D[a] >> pos)[width-1:0]); If pos + width > 32 or if width = 0, then the results are undefined.
-            extr = irb.CreateAnd(irb.CreateLShr(op1, op2), ~(~0 << t->operands[3].imm.value));
+            extr = irb.CreateAnd(irb.CreateLShr(op1, op3), ~(~0 << t->operands[4].imm.value));
             ct = eOpConv::ZEXT_TRUNC;
             break;
 
@@ -763,6 +773,33 @@ void Capstone2LlvmIrTranslatorTricore::translate00(cs_insn* i, cs_tricore* t, ll
 void Capstone2LlvmIrTranslatorTricore::translateIgnore(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
     //do nothing
     // e.g. TRICORE_INS_ISYNC;
+}
+
+void Capstone2LlvmIrTranslatorTricore::translateInsertBit(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
+    assert(i->id == TRICORE_INS_INST);
+
+    op1 = loadOp(t->operands[1], irb);
+    op2 = loadOp(t->operands[2], irb);
+//     op3 = loadOp(t->operands[3], irb);
+    op4 = loadOp(t->operands[4], irb);
+    switch (t->op2) {
+        case 0x00: //D[c] = {D[a][31:(pos1+1)], D[b][pos2], D[a][(pos1-1):0]};
+        {
+            auto* bitInPos2 = irb.CreateAnd(irb.CreateLShr(op2, op4), 1);
+            op1 = irb.CreateAnd(op1, irb.CreateOr(irb.CreateShl(bitInPos2, op4), ~(~0 << t->operands[4].imm.value)));
+            break;
+        }
+        case 0x01: //D[c] = {D[a][31:(pos1+1)], !D[b][pos2], D[a][(pos1-1):0]};
+        {
+            auto* bitInPos2 = irb.CreateNot(irb.CreateAnd(irb.CreateLShr(op2, op4), 1));
+            op1 = irb.CreateAnd(op1, irb.CreateOr(irb.CreateShl(bitInPos2, op4), ~(~0 << t->operands[4].imm.value)));
+            break;
+        }
+        default:
+            assert(false);
+    }
+
+    storeOp(t->operands[0], op1, irb);
 }
 
 } // namespace capstone2llvmir

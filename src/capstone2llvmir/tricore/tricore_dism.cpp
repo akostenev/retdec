@@ -578,7 +578,28 @@ void dismB(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 }
 
 void dismBIT(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
+    t->format = TRICORE_OF_BIT;
+    t->op_count = 5;
+    t->op2 = bitRange<21, 22>(b).to_ulong();
 
+    auto s1 = bitRange<8, 11>(b).to_ulong();
+    auto s2 = bitRange<12, 15>(b).to_ulong();
+    auto pos1 = bitRange<16, 20>(b);
+    auto pos2 = bitRange<23, 27>(b);
+    auto d = bitRange<28, 31>(b).to_ulong();
+
+    switch (i->id) {
+        case TRICORE_INS_INST:
+            t->operands[0] = getRegD(d);
+            t->operands[1] = getRegD(s1);
+            t->operands[2] = getRegD(s2);
+            t->operands[3] = zExtImm<5>(pos1);
+            t->operands[4] = zExtImm<5>(pos2);
+            break;
+
+        default:
+            assert(false);
+    }
 }
 
 void dismBO(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
@@ -969,11 +990,11 @@ void dismRR2(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 
 void dismRRPW(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
     t->format = TRICORE_OF_RRPW;
-    t->op_count = 4;
+    t->op_count = 5;
     t->op2 = bitRange<21, 22>(b).to_ulong();
 
     auto s1 = bitRange<8, 11>(b).to_ulong();
-//     auto s2 = bitRange<12, 15>(b).to_ulong();
+    auto s2 = bitRange<12, 15>(b).to_ulong();
     auto d = bitRange<28, 31>(b).to_ulong();
     auto width = bitRange<16, 20>(b);
     auto pos = bitRange<23, 27>(b);
@@ -982,8 +1003,9 @@ void dismRRPW(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
         case TRICORE_INS_EXTR: //D[c] = sign_ext((D[a] >> pos)[width-1:0]); If pos + width > 32 or if width = 0, then the results are undefined.
             t->operands[0] = getRegD(d);
             t->operands[1] = getRegD(s1);
-            t->operands[2] = zExtImm<5>(pos);
-            t->operands[3] = zExtImm<5>(width);
+            t->operands[2] = getRegD(s2);
+            t->operands[3] = zExtImm<5>(pos);
+            t->operands[4] = zExtImm<5>(width);
             break;
 
         default:
@@ -1110,6 +1132,8 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_JA, &dismB},
     {TRICORE_INS_CALL32, &dismB},
     {TRICORE_INS_FCALL, &dismB},
+
+    {TRICORE_INS_INST, &dismBIT},
 
     {TRICORE_INS_ST89, &dismBO},
     {TRICORE_INS_LD09, &dismBO},

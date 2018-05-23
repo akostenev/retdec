@@ -300,6 +300,8 @@ std::map<
 
         {TRICORE_INS_ISYNC, &Capstone2LlvmIrTranslatorTricore::translateIgnore},
 
+        {TRICORE_INS_INST, &Capstone2LlvmIrTranslatorTricore::translateInsertBit},
+
         {TRICORE_INS_J32, &Capstone2LlvmIrTranslatorTricore::translateJ},
         {TRICORE_INS_J16, &Capstone2LlvmIrTranslatorTricore::translateJ},
         {TRICORE_INS_JA, &Capstone2LlvmIrTranslatorTricore::translateJ},

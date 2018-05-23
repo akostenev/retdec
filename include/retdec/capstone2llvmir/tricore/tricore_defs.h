@@ -410,6 +410,8 @@ typedef enum tricore_insn {
 
     TRICORE_INS_ISYNC = 0x0D,
 
+    TRICORE_INS_INST = 0x67,
+
     TRICORE_INS_J32 = 0x1D,
     TRICORE_INS_JNEQ32 = 0x5F,
     TRICORE_INS_J16 = 0x3C,
