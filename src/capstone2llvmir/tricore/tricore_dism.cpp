@@ -951,6 +951,7 @@ void dismRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             t->operands[2] = getRegD(s2);
 
             switch (t->op2) {
+                case 0x0A:
                 case 0x1A:
                     t->operands[0].extended = true;
 
