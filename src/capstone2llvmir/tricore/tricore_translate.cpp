@@ -192,8 +192,9 @@ void Capstone2LlvmIrTranslatorTricore::translateDiv(cs_insn* i, cs_tricore* t, l
         case TRICORE_INS_DIV:
             switch (t->op2) {
                 case 0x0A: //E[c] = {00000000H , D[a]};
+                    op0 = loadOp(t->operands[0], irb);
                     op1 = loadOp(t->operands[1], irb);
-                    storeOp(t->operands[0], op1, irb, eOpConv::ZEXT_TRUNC);
+                    storeOp(t->operands[0], irb.CreateZExt(op1, op0->getType()), irb);
                     break;
 
                 case 0x1A: //DVINITE E[c] = sign_ext(D[a]);
@@ -528,7 +529,15 @@ void Capstone2LlvmIrTranslatorTricore::translateLoad09(cs_insn* i, cs_tricore* t
             break;
         }
         case 0x20: //EA = A[b] + sign_ext(off10); D[a] = sign_ext(M(EA, byte));
+            op1 = loadOp(t->operands[1], irb);
+            storeOp(t->operands[0], op1, irb, eOpConv::SEXT_TRUNC);
+            break;
+
         case 0x21: //EA = A[b] + sign_ext(off10); D[a] = zero_ext(M(EA, byte));
+            op1 = loadOp(t->operands[1], irb);
+            storeOp(t->operands[0], op1, irb, eOpConv::ZEXT_TRUNC);
+            break;
+
         case 0x25: //EA = A[b] + sign_ext(off10); E[a] = M(EA, doubleword);
             op1 = loadOp(t->operands[1], irb);
             storeOp(t->operands[0], op1, irb);
@@ -547,7 +556,14 @@ void Capstone2LlvmIrTranslatorTricore::translateMul(cs_insn* i, cs_tricore* t, l
             op1 = loadOp(t->operands[1], irb);
             op2 = loadOp(t->operands[2], irb);
             switch (t->op2) {
+                case 0x0A: //result = D[a] * D[b]; D[c] = result[31:0];
                 case 0x88: //result = D[a] * D[b]; // unsigned D[c] = suov(result, 32);
+                    mul = irb.CreateMul(op1, op2);
+                    break;
+
+                case 0x68: //result = D[a] * D[b]; // unsigned E[c] = result[63:0];
+                    op1 = irb.CreateZExt(op1, op0->getType());
+                    op2 = irb.CreateZExt(op2, op0->getType());
                     mul = irb.CreateMul(op1, op2);
                     break;
 

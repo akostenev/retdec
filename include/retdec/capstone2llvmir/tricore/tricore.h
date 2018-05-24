@@ -81,10 +81,10 @@ protected:
 
     llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb);
     llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty);
-    llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC);
+    llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::THROW);
 
     llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb, bool extended = false);
-    llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::SEXT_TRUNC, bool extended = false);
+    llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::THROW, bool extended = false);
 
 protected:
     static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>&)> _i2fm;

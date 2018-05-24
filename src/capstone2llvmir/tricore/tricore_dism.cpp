@@ -999,6 +999,7 @@ void dismRR2(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             t->operands[2] = getRegD(s2);
 
             switch (t->op2) {
+                case 0x68: //result = D[a] * D[b]; // unsigned E[c] = result[63:0];
                 case 0x6a: //result = D[a] * D[b]; E[c] = result[63:0];
                     t->operands[0].extended = true;
                     break;
