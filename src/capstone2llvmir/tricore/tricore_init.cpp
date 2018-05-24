@@ -352,6 +352,7 @@ std::map<
         {TRICORE_INS_MOVU, &Capstone2LlvmIrTranslatorTricore::translateLoad},
 
         {TRICORE_INS_MULD, &Capstone2LlvmIrTranslatorTricore::translateMul},
+        {TRICORE_INS_MULD2, &Capstone2LlvmIrTranslatorTricore::translateMul},
         {TRICORE_INS_MULE, &Capstone2LlvmIrTranslatorTricore::translateMul},
 
         {TRICORE_INS_SHAD, &Capstone2LlvmIrTranslatorTricore::translateShift},

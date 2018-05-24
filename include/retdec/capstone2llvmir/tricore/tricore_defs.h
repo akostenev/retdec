@@ -496,6 +496,7 @@ typedef enum tricore_insn {
     TRICORE_INS_MOVU = 0xBB,
 
     TRICORE_INS_MULD = 0x73,
+    TRICORE_INS_MULD2 = 0xE2,
     TRICORE_INS_MULE = 0x53,
 
     TRICORE_INS_SHAD = 0x86,

@@ -191,6 +191,11 @@ void Capstone2LlvmIrTranslatorTricore::translateDiv(cs_insn* i, cs_tricore* t, l
     switch (i->id) {
         case TRICORE_INS_DIV:
             switch (t->op2) {
+                case 0x0A: //E[c] = {00000000H , D[a]};
+                    op1 = loadOp(t->operands[1], irb);
+                    storeOp(t->operands[0], op1, irb, eOpConv::ZEXT_TRUNC);
+                    break;
+
                 case 0x1A: //DVINITE E[c] = sign_ext(D[a]);
                     op1 = loadOp(t->operands[1], irb);
                     storeOp(t->operands[0], op1, irb, eOpConv::SEXT_TRUNC);
@@ -213,6 +218,7 @@ void Capstone2LlvmIrTranslatorTricore::translateDiv(cs_insn* i, cs_tricore* t, l
                 case 0x0D: //DVADJ
                     break;
 
+                case 0x0E:
                 case 0x0F:
                 {
                     op1 = loadOp(t->operands[1], irb); //D[b]
@@ -534,14 +540,12 @@ void Capstone2LlvmIrTranslatorTricore::translateLoad09(cs_insn* i, cs_tricore* t
 }
 
 void Capstone2LlvmIrTranslatorTricore::translateMul(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
-    op0 = loadOp(t->operands[0], irb);
-    op1 = loadOp(t->operands[1], irb);
-    op2 = loadOp(t->operands[2], irb);
-
     llvm::Value* mul = nullptr;
-
     switch (i->id) {
         case TRICORE_INS_MULD:
+            op0 = loadOp(t->operands[0], irb);
+            op1 = loadOp(t->operands[1], irb);
+            op2 = loadOp(t->operands[2], irb);
             switch (t->op2) {
                 case 0x88: //result = D[a] * D[b]; // unsigned D[c] = suov(result, 32);
                     mul = irb.CreateMul(op1, op2);
@@ -558,7 +562,16 @@ void Capstone2LlvmIrTranslatorTricore::translateMul(cs_insn* i, cs_tricore* t, l
             }
             break;
 
+        case TRICORE_INS_MULD2: // result = D[a] * D[b]; D[a] = result[31:0];
+            op0 = loadOp(t->operands[0], irb);
+            op1 = loadOp(t->operands[1], irb);
+            mul = irb.CreateMul(op0, op1);
+            break;
+
         case TRICORE_INS_MULE: //result = D[a] * sign_ext(const9); E[c] = result[63:0];
+            op0 = loadOp(t->operands[0], irb);
+            op1 = loadOp(t->operands[1], irb);
+            op2 = loadOp(t->operands[2], irb);
             op1 = irb.CreateSExt(op1, op0->getType());
             op2 = irb.CreateSExt(op2, op0->getType());
             mul = irb.CreateMul(op1, op2);
