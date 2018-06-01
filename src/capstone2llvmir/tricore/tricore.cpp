@@ -47,6 +47,8 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
             i.size = 2;
             i.bytes[0] = *it++;
             i.bytes[1] = *it++;
+            i.bytes[2] = 0;
+            i.bytes[3] = 0;
         }
 
         address += i.size;

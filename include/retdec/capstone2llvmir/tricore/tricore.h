@@ -89,6 +89,7 @@ protected:
 protected:
     static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>&)> _i2fm;
     void translateAdd(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateCadd(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateAnd(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
