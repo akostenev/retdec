@@ -382,6 +382,7 @@ typedef enum tricore_insn {
     // _r := register
     // _z := zero extend
 
+    TRICORE_INS_ADD16 = 0x12,
     TRICORE_INS_ADDA = 0xB0,
     TRICORE_INS_ADDD_c = 0xC2,
     TRICORE_INS_ADDDD = 0x42,
@@ -426,7 +427,7 @@ typedef enum tricore_insn {
     TRICORE_INS_JEQ32 = 0xDF,
     TRICORE_INS_JEQ_4_c = 0x1E,
     TRICORE_INS_JEQ_4_c_PLUS_16 = 0x9E,
-    TRICORE_INS_JEQ_4_r = 0x3E,
+    TRICORE_INS_JEQ16 = 0x3E,
     TRICORE_INS_JEQ_4_r_PLUS_16 = 0xBE,
     TRICORE_INS_JEQA = 0x7D,
     TRICORE_INS_JGE_U_c = 0xFF,

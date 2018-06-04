@@ -9,6 +9,7 @@ void Capstone2LlvmIrTranslatorTricore::translateAdd(cs_insn* i, cs_tricore* t, l
     llvm::Value* add = nullptr;
 
     switch(i->id) {
+        case TRICORE_INS_ADD16: //result = D[15] + D[b]; D[a] = result[31:0];
         case TRICORE_INS_ADDI: //result = D[a] + sign_ext(const16); D[c] = result[31:0];
         case TRICORE_INS_ADDIH_A: //A[c] = A[a] + {const16, 16’h0000};
             op1 = loadOp(t->operands[1], irb);
@@ -228,6 +229,10 @@ void Capstone2LlvmIrTranslatorTricore::translateCmp(cs_insn* i, cs_tricore* t, l
                 case 0x14: //result = (D[a] >= sign_ext(const9)); D[c] = zero_ext(result);
                         //result = (D[a] >= D[b]); D[c] = zero_ext(result); TODO GED with RR op_format???
                     v = irb.CreateICmpSGE(op1, op2);
+                    break;
+
+                case 0x15: //result = (D[a] >= zero_ext(const9)); // unsigned D[c] = zero_ext(result);
+                    v = irb.CreateICmpUGE(op1, op2);
                     break;
 
                 case 0x20: //D[c] = {D[c][31:1], D[c][0] AND (D[a] == sign_ext(const9))};
@@ -518,6 +523,12 @@ void Capstone2LlvmIrTranslatorTricore::translateConditionalJ(cs_insn* i, cs_tric
         case TRICORE_INS_JNED15: //if (D[15] != sign_ext(const4)) then PC = PC + zero_ext(disp4) * 2;
             op1 = loadOp(t->operands[1], irb);
             cond = irb.CreateICmpNE(op0, op1);
+            target = loadOp(t->operands[2], irb);
+            break;
+
+        case TRICORE_INS_JEQ16: //if (D[15] == D[b]) then PC = PC + zero_ext(disp4) * 2;
+            op1 = loadOp(t->operands[1], irb);
+            cond = irb.CreateICmpEQ(op0, op1);
             target = loadOp(t->operands[2], irb);
             break;
 
