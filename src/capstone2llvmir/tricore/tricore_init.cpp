@@ -282,8 +282,9 @@ std::map<
         {TRICORE_INS_ADDDD, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_ADDIH_A, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_ADDSCA, &Capstone2LlvmIrTranslatorTricore::translateAdd},
-
-        {TRICORE_INS_CADD, &Capstone2LlvmIrTranslatorTricore::translateCadd},
+        {TRICORE_INS_ADDSCA16, &Capstone2LlvmIrTranslatorTricore::translateAdd},
+        {TRICORE_INS_CADD, &Capstone2LlvmIrTranslatorTricore::translateAdd},
+        {TRICORE_INS_MADD, &Capstone2LlvmIrTranslatorTricore::translateAdd},
 
         {TRICORE_INS_ANDD15, &Capstone2LlvmIrTranslatorTricore::translateAnd},
         {TRICORE_INS_BIT_OPERATIONS1, &Capstone2LlvmIrTranslatorTricore::translateBitOperations1},
@@ -295,6 +296,7 @@ std::map<
 
         {TRICORE_INS_CMP, &Capstone2LlvmIrTranslatorTricore::translateCmp},
         {TRICORE_INS_EQ16, &Capstone2LlvmIrTranslatorTricore::translateCmp},
+        {TRICORE_INS_CMOVN16, &Capstone2LlvmIrTranslatorTricore::translateCmp},
 
         {TRICORE_INS_DIV, &Capstone2LlvmIrTranslatorTricore::translateDiv},
         {TRICORE_INS_DVSTEP, &Capstone2LlvmIrTranslatorTricore::translateDiv},
@@ -313,7 +315,7 @@ std::map<
         {TRICORE_INS_JNEQ32, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JEQA, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JLTD, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
-        {TRICORE_INS_JEQ_15_c, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
+        {TRICORE_INS_JEQ32, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JNZ_D15, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JNZT, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JZD, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
@@ -324,7 +326,9 @@ std::map<
         {TRICORE_INS_JNED15, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JZT_16, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
         {TRICORE_INS_JGTZ, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
-        {TRICORE_INS_JGE_U_r, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
+        {TRICORE_INS_JGEDD, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
+        {TRICORE_INS_JNZ16, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
+        {TRICORE_INS_JGE_U_c, &Capstone2LlvmIrTranslatorTricore::translateConditionalJ},
 
         {TRICORE_INS_LEA, &Capstone2LlvmIrTranslatorTricore::translateLoad},
         {TRICORE_INS_LD, &Capstone2LlvmIrTranslatorTricore::translateLoad},
@@ -374,13 +378,17 @@ std::map<
         {TRICORE_INS_ST, &Capstone2LlvmIrTranslatorTricore::translateStore},
         {TRICORE_INS_STA, &Capstone2LlvmIrTranslatorTricore::translateStore},
         {TRICORE_INS_STB, &Capstone2LlvmIrTranslatorTricore::translateStore},
+        {TRICORE_INS_STB_ABS, &Capstone2LlvmIrTranslatorTricore::translateStore},
         {TRICORE_INS_STBA, &Capstone2LlvmIrTranslatorTricore::translateStore},
         {TRICORE_INS_ST_BA, &Capstone2LlvmIrTranslatorTricore::translateStore},
         {TRICORE_INS_STD, &Capstone2LlvmIrTranslatorTricore::translateStore},
         {TRICORE_INS_STHW, &Capstone2LlvmIrTranslatorTricore::translateStore},
+        {TRICORE_INS_STHW16, &Capstone2LlvmIrTranslatorTricore::translateStore},
+        {TRICORE_INS_STHW16_REL, &Capstone2LlvmIrTranslatorTricore::translateStore},
         {TRICORE_INS_STW, &Capstone2LlvmIrTranslatorTricore::translateStore},
         {TRICORE_INS_STWA, &Capstone2LlvmIrTranslatorTricore::translateStore},
         {TRICORE_INS_STD15, &Capstone2LlvmIrTranslatorTricore::translateStore},
+        {TRICORE_INS_STHW16D15, &Capstone2LlvmIrTranslatorTricore::translateStore},
         {TRICORE_INS_ST89, &Capstone2LlvmIrTranslatorTricore::translateStore89},
 
         {TRICORE_INS_SUBA10, &Capstone2LlvmIrTranslatorTricore::translateSub},

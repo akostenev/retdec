@@ -18,7 +18,7 @@ const std::string ARCH_ARM     = "arm";
 const std::string ARCH_THUMB   = "thumb";
 const std::string ARCH_x86     = "x86";
 const std::string ARCH_PPC     = "powerpc";
-const std::string ARCH_TRICORE     = "siemens tricore embedded processor";
+const std::string ARCH_TRICORE     = "tricore"; //"siemens tricore embedded processor";
 
 
 const std::string JSON_name    = "name";

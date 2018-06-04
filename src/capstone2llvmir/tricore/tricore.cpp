@@ -40,12 +40,24 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
         if ((*it) & 1) { // 32-Bit instruction
             i.size = 4;
             i.bytes[0] = *it++;
+            if (it == end) {
+                assert(false);
+            }
             i.bytes[1] = *it++;
+            if (it == end) {
+                assert(false);
+            }
             i.bytes[2] = *it++;
+            if (it == end) {
+                assert(false);
+            }
             i.bytes[3] = *it++;
         } else { // 16-bit instruction
             i.size = 2;
             i.bytes[0] = *it++;
+            if (it == end) {
+                assert(false);
+            }
             i.bytes[1] = *it++;
             i.bytes[2] = 0;
             i.bytes[3] = 0;
