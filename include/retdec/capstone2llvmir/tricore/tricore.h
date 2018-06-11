@@ -79,6 +79,13 @@ protected:
     llvm::CallInst* generateCondBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* cond, llvm::Value* t, bool relative = true);
     llvm::CallInst* generateReturnFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative = true);
 
+    template<std::size_t N>
+    llvm::Value* ld(cs_tricore* t, llvm::IRBuilder<>& irb) {
+        if (N >= t->op_count) {
+            return nullptr;
+        }
+        return loadOp(t->operands[N], irb);
+    };
     llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb);
     llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty);
     llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::THROW);
@@ -145,17 +152,6 @@ std::bitset<N> bitRange(std::bitset<N> b) {
 
     return b;
 };
-
-// template<std::uint16_t N>
-// std::bitset<N> getBitSet(const uint8_t bytes[16])
-// {
-//     long unsigned int b = 0;
-//     for (unsigned i = 0; i < N; i++) {
-//         b |= bytes[i] << (i * 8);
-//     }
-//     std::bitset<N> r(b);
-//     return r;
-// };
 
 #endif
 

@@ -2,6 +2,26 @@
 
 #include <iostream>
 
+bool isSrrsFormat(unsigned int ins) {
+    switch (ins & 0b11111) {
+        case TRICORE_INS_ADDSCA16:
+            return true;
+
+        default:
+            return false;
+    }
+};
+
+bool isBrrnFormat(unsigned int ins) {
+    switch (ins & 0b111111) {
+        case TRICORE_INS_JNZT:
+            return true;
+
+        default:
+            return false;
+    }
+};
+
 namespace retdec {
 namespace capstone2llvmir {
 
@@ -99,18 +119,14 @@ void Capstone2LlvmIrTranslatorTricore::translateInstruction(cs_insn* i, llvm::IR
     } else {
 
         //Check if SRRS op format
-        fIt = _i2fm.find(i->id & 0b11111);
-        if (fIt != std::end(_i2fm)) {
+        if (isSrrsFormat(i->id)) {
             i->id = i->id & 0b11111;
             translateInstruction(i, irb);
             return;
-        } else { //Check if BRN op format
-            fIt = _i2fm.find(i->id & 0b111111);
-            if (fIt != std::end(_i2fm)) {
-                i->id = i->id & 0b111111;
-                translateInstruction(i, irb);
-                return;
-            }
+        } else if (isBrrnFormat(i->id)) { //Check if BRRN op format
+            i->id = i->id & 0b111111;
+            translateInstruction(i, irb);
+            return;
         }
 
         std::cout << "Translation of unhandled instruction: " << i->id << " @ " << std::hex << i->address << std::endl;
@@ -567,12 +583,8 @@ std::string Capstone2LlvmIrTranslatorTricore::getRegisterName(uint32_t r) const 
     }
 }
 
-
-
 } // namespace capstone2llvmir
 } // namespace retdec
-
-
 
 // llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOpUnary(cs_tricore* mi, llvm::IRBuilder<>& irb) {
 //     if (mi->op_count != 1) {
