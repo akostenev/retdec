@@ -125,6 +125,7 @@ protected:
 
     void translateStore(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateStore89(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateConditionalStore(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateSub(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 

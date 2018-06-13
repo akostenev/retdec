@@ -401,6 +401,7 @@ typedef enum tricore_insn {
 
     TRICORE_INS_CALL16 = 0x5C,
     TRICORE_INS_CALL32 = 0x6D,
+    TRICORE_INS_CALLI = 0x2D,
     TRICORE_INS_CALLABS = 0xED,
 
     TRICORE_INS_CMOVN16 = 0xEA,
@@ -458,6 +459,7 @@ typedef enum tricore_insn {
     TRICORE_INS_JZA_16 = 0xBC,
     TRICORE_INS_JZT_16 = 0x2E,
     TRICORE_INS_JLT = 0xBF,
+    TRICORE_INS_JNE_INC_DEC = 0x9F,
 
     TRICORE_INS_LD = 0x85,
     TRICORE_INS_LDA = 0xC8,
@@ -498,6 +500,8 @@ typedef enum tricore_insn {
     TRICORE_INS_MULD = 0x73,
     TRICORE_INS_MULD2 = 0xE2,
     TRICORE_INS_MULE = 0x53,
+
+    TRICORE_INS_SELN = 0x2B,
 
     TRICORE_INS_SHAD = 0x86,
     TRICORE_INS_SHD = 0x06,

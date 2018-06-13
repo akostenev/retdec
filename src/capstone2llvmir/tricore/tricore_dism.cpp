@@ -710,8 +710,8 @@ void dismB(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 
         case TRICORE_INS_FCALL: // ... to long
             t->op_count = 3;
-            t->operands[0] = mem(TRICORE_REG_A_10, tricore_op_imm(4, WORD, TRICORE_EXT_ZEXT_TRUNC));
-            t->operands[1] = TRICORE_REG_A_11;
+            t->operands[0] = mem(TRICORE_REG_SP, tricore_op_imm(4, WORD, TRICORE_EXT_ZEXT_TRUNC), WORD, TRICORE_EXT_THROW, true);
+            t->operands[1] = TRICORE_REG_RA;
             t->operands[2] = sExtImm<24>(disp24, 2);
             break;
 
@@ -919,7 +919,12 @@ void dismBRC(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             }
             break;
 
-//         case 0x9F:
+        case TRICORE_INS_JNE_INC_DEC:
+            t->operands[0] = sExtImm<15>(disp15, 2);
+            t->operands[1] = getRegD(s1);
+            t->operands[2] = sExtImm<4>(const4);
+            break;
+
         default:
             assert(false && TRICORE_OF_BRC);
     }
@@ -1167,6 +1172,12 @@ void dismRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             t->operands[2] = getRegD(s1);
             break;
 
+        case TRICORE_INS_CALLI: //to long...
+            t->op_count = 2;
+            t->operands[0] = getRegA(s1);
+            t->operands[1] = mem(TRICORE_REG_A_10, sExtImm<3>(std::bitset<64>(4)), WORD, TRICORE_EXT_THROW, true);
+            break;
+
         default:
             assert(false && TRICORE_OF_RR);
     }
@@ -1259,6 +1270,13 @@ void dismRRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
                     t->operands[1] = getRegD(s2);
                     t->operands[2] = {getRegD(s3), true};
             }
+            break;
+
+        case TRICORE_INS_SELN:
+            t->operands[0] = getRegD(d);
+            t->operands[1] = getRegD(s1);
+            t->operands[2] = getRegD(s2);
+            t->operands[3] = getRegD(s3);
             break;
 
         default:
@@ -1428,6 +1446,7 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_JEQ32, &dismBRC},
     {TRICORE_INS_JGE, &dismBRC},
     {TRICORE_INS_JLT, &dismBRC},
+    {TRICORE_INS_JNE_INC_DEC, &dismBRC},
 
     {TRICORE_INS_JNZT, &dismBRN},
 
@@ -1458,12 +1477,14 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_DIV, &dismRR},
     {TRICORE_INS_0B, &dismRR},
     {TRICORE_INS_ADDSCA, &dismRR},
+    {TRICORE_INS_CALLI, &dismRR},
 
     {TRICORE_INS_MULD, &dismRR2},
 
     {TRICORE_INS_EXTR, &dismRRPW},
 
     {TRICORE_INS_DVSTEP, &dismRRR},
+    {TRICORE_INS_SELN, &dismRRR},
 
     {TRICORE_INS_MADD_RRR2, &dismRRR2},
 

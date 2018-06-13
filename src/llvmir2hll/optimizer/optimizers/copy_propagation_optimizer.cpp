@@ -207,6 +207,7 @@ void CopyPropagationOptimizer::doOptimization() {
 }
 
 void CopyPropagationOptimizer::runOnFunction(ShPtr<Function> func) {
+    return; //TODO delete me
 	// Keep optimizing until there are no changes.
 	do {
 		ducs = dua->getDefUseChains(
