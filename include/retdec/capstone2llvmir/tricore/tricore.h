@@ -97,11 +97,9 @@ protected:
     static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>&)> _i2fm;
     void translateAdd(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateAnd(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
-
     void translateBitOperations1(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateBitOperations2(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
-    void translateBitOperationsD(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateBitOperations(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateCall(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
@@ -110,6 +108,7 @@ protected:
     void translateDiv(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateExtr(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateInsertImask(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateJl(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);

@@ -2,8 +2,9 @@
 
 #include <iostream>
 
+#define SRRSMASK 0b111111
 bool isSrrsFormat(unsigned int ins) {
-    switch (ins & 0b11111) {
+    switch (ins & SRRSMASK) {
         case TRICORE_INS_ADDSCA16:
             return true;
 
@@ -12,8 +13,9 @@ bool isSrrsFormat(unsigned int ins) {
     }
 };
 
+#define BRRNMASK 0b1111111
 bool isBrrnFormat(unsigned int ins) {
-    switch (ins & 0b111111) {
+    switch (ins & BRRNMASK) {
         case TRICORE_INS_JNZT:
             return true;
 
@@ -61,22 +63,26 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
             i.size = 4;
             i.bytes[0] = *it++;
             if (it == end) {
-                assert(false);
+                return res;
+//                 assert(false);
             }
             i.bytes[1] = *it++;
             if (it == end) {
-                assert(false);
+                return res;
+//                 assert(false);
             }
             i.bytes[2] = *it++;
             if (it == end) {
-                assert(false);
+                return res;
+//                 assert(false);
             }
             i.bytes[3] = *it++;
         } else { // 16-bit instruction
             i.size = 2;
             i.bytes[0] = *it++;
             if (it == end) {
-                assert(false);
+                return res;
+//                 assert(false);
             }
             i.bytes[1] = *it++;
             i.bytes[2] = 0;
@@ -120,11 +126,11 @@ void Capstone2LlvmIrTranslatorTricore::translateInstruction(cs_insn* i, llvm::IR
 
         //Check if SRRS op format
         if (isSrrsFormat(i->id)) {
-            i->id = i->id & 0b11111;
+            i->id = i->id & SRRSMASK;
             translateInstruction(i, irb);
             return;
         } else if (isBrrnFormat(i->id)) { //Check if BRRN op format
-            i->id = i->id & 0b111111;
+            i->id = i->id & BRRNMASK;
             translateInstruction(i, irb);
             return;
         }
