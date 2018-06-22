@@ -70,6 +70,10 @@ protected:
     uint32_t regToExtendedReg(uint32_t r) const;
     std::pair<uint32_t, uint32_t> extendedRegToRegs(uint32_t r) const;
 
+    template<std::size_t N>
+    llvm::Value* constInt(llvm::Value* t) {
+        return llvm::ConstantInt::get(t->getType(), N);
+    }
     llvm::IntegerType* getType(uint8_t bitSize = 32);
     llvm::Value* getCurrentPc(cs_insn* i);
     llvm::Value* getNextInsnAddress(cs_insn* i);
@@ -103,7 +107,7 @@ protected:
 
     void translateCall(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
-    void translateCmp(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translate8B(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateDiv(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 

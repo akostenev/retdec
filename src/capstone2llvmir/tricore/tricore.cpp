@@ -51,6 +51,10 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
     _inCondition = false;
     uint64_t address = a;
 
+    if (address & 1) {
+        return res;
+    }
+
     /**
      * Build tricore2capstone (light)
      */
