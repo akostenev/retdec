@@ -293,6 +293,8 @@ typedef enum tricore_ext {
     TRICORE_EXT_THROW = 0,
     TRICORE_EXT_ZEXT_TRUNC,
     TRICORE_EXT_SEXT_TRUNC,
+    TRICORE_EXT_TRUNC_L,
+    TRICORE_EXT_TRUNC_H,
 } tricore_ext;
 
 typedef struct tricore_op_imm {
@@ -307,6 +309,13 @@ typedef struct tricore_op_imm {
             {};
 } tricore_op_imm;
 
+typedef enum tricore_mem_op {
+    TRICORE_MEM_OP_NOTHING = 0, // default mem(A[a], disp): load mem(A[a], disp)
+    TRICORE_MEM_OP_POSTINC, // mem(A[a], disp): load mem(A[a]) and pinc A[a] += disp
+    TRICORE_MEM_OP_PREINC, // mem(A[a], disp): load mem(A[a], disp) and pinc A[a] += disp
+    TRICORE_MEM_OP_LEA, // mem(A[a], disp): load EA = A[a] + disp
+} tricore_mem_p_op;
+
 // Instruction's operand referring to memory
 // This is associated with MIPS_OP_MEM operand type above
 typedef struct tricore_op_mem {
@@ -314,14 +323,14 @@ typedef struct tricore_op_mem {
     tricore_op_imm disp; // displacement/offset value
     uint8_t size; // size in bit e.g. 32:word, 16:half-word, ...
     tricore_ext ext; // Extension if size < sizeof base
-    bool lea;
+    tricore_mem_op op;
 
-    tricore_op_mem(tricore_reg base, tricore_op_imm disp, uint8_t size = WORD, tricore_ext ext = TRICORE_EXT_THROW, bool lea = false) :
+    tricore_op_mem(tricore_reg base, tricore_op_imm disp, uint8_t size = WORD, tricore_ext ext = TRICORE_EXT_THROW, tricore_mem_op op = TRICORE_MEM_OP_NOTHING) :
             base(base),
             disp(disp),
             size(size),
             ext(ext),
-            lea(lea)
+            op(op)
             {};
 } tricore_op_mem;
 
@@ -395,12 +404,14 @@ typedef enum tricore_insn {
     TRICORE_INS_ADDSCA = 0x01,
     TRICORE_INS_ADDSCA16 = 0x10,
     TRICORE_INS_CADD = 0xAB,
+    TRICORE_INS_CADD16 = 0x8A,
     TRICORE_INS_MADD = 0x13,
     TRICORE_INS_MADD_RRR2 = 0x03,
 
     TRICORE_INS_ANDD = 0x26,
     TRICORE_INS_ANDD15 = 0x16,
     TRICORE_INS_NAND = 0x07,
+    TRICORE_INS_NAND_NOR = 0x87,
 
     TRICORE_INS_BIT_OPERATIONS1 = 0x8F,
     TRICORE_INS_BIT_OPERATIONS2 = 0x0F,

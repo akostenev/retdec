@@ -255,13 +255,25 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
                 if (op.mem.disp.value == 0) {
                     addr = baseR;
                 } else {
-                    assert(baseR->getType() == disp->getType());
-                    addr = irb.CreateAdd(baseR, disp);
-                }
-            }
+                    if (op.mem.op == TRICORE_MEM_OP_NOTHING) { //default mem(A[a], disp): load mem(A[a], disp)
+                        addr = irb.CreateAdd(baseR, disp);
 
-            if (op.mem.lea) {
-                return addr;
+                    } else if (op.mem.op == TRICORE_MEM_OP_POSTINC) { // mem(A[a], disp): load mem(A[a]) and pinc A[a] += disp
+                        addr = baseR;
+                        storeRegister(op.mem.base, irb.CreateAdd(baseR, disp), irb); //pinc A[a] += disp)
+
+                    } else if (op.mem.op == TRICORE_MEM_OP_PREINC) { // mem(A[a], disp): load mem(A[a], disp) and pinc A[a] += disp
+                        addr = irb.CreateAdd(baseR, disp);
+                        storeRegister(op.mem.base, addr, irb); //pinc A[a] += disp)
+
+                    } else if (op.mem.op == TRICORE_MEM_OP_LEA) { // mem(A[a], disp): load EA = A[a] + disp
+                        addr = irb.CreateAdd(baseR, disp);
+                        return addr;
+
+                    } else {
+                        assert(false && "UNKNOWN OP FOR LOAD TRICORE_MEM");
+                    }
+                }
             }
 
             auto* pt = llvm::PointerType::get(getType(op.mem.size), 0);
@@ -305,13 +317,43 @@ llvm::Instruction* Capstone2LlvmIrTranslatorTricore::storeOp(cs_tricore_op& op, 
                 if (op.mem.disp.value == 0) {
                     addr = baseR;
                 } else {
-                    addr = irb.CreateAdd(baseR, disp);
+                    if (op.mem.op == TRICORE_MEM_OP_NOTHING) { //default mem(A[a], disp): load mem(A[a], disp)
+                        addr = irb.CreateAdd(baseR, disp);
+
+                    } else if (op.mem.op == TRICORE_MEM_OP_POSTINC) { // mem(A[a], disp): load mem(A[a]) and pinc A[a] += disp
+                        addr = baseR;
+                        storeRegister(op.mem.base, irb.CreateAdd(baseR, disp), irb); //pinc A[a] += disp)
+
+                    } else if (op.mem.op == TRICORE_MEM_OP_PREINC) { // mem(A[a], disp): load mem(A[a], disp) and pinc A[a] += disp
+                        addr = irb.CreateAdd(baseR, disp);
+                        storeRegister(op.mem.base, addr, irb); //pinc A[a] += disp)
+
+                    } else {
+                        assert(false && "UNKNOWN OP FOR STORE TRICORE_MEM");
+                    }
                 }
             }
 
-            auto* pt = llvm::PointerType::get(val->getType(), 0);
+            auto* v = val;
+            if (op.mem.ext == TRICORE_EXT_TRUNC_H) { //higher half
+                v = irb.CreateAnd(irb.CreateLShr(val, op.mem.size / 2), ~(~0 << op.mem.size / 2));
+                v = irb.CreateTrunc(v, getType(op.mem.size));
+
+            } else if (op.mem.ext == TRICORE_EXT_TRUNC_L) { //lower half
+                v = irb.CreateAnd(val, ~(~0 << op.mem.size / 2));
+                v = irb.CreateTrunc(v, getType(op.mem.size));
+
+            } else if (op.mem.ext == TRICORE_EXT_SEXT_TRUNC) {
+                v = irb.CreateSExtOrTrunc(v, getType(op.mem.size));
+
+            } else if (op.mem.ext == TRICORE_EXT_ZEXT_TRUNC) {
+                v = irb.CreateZExtOrTrunc(v, getType(op.mem.size));
+            }
+
+
+            auto* pt = llvm::PointerType::get(v->getType(), 0);
             addr = irb.CreateIntToPtr(addr, pt);
-            return irb.CreateStore(val, addr);
+            return irb.CreateStore(v, addr);
         }
         case TRICORE_OP_IMM:
         case TRICORE_OP_INVALID:
@@ -338,10 +380,19 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadRegister(uint32_t r, llvm::IR
         r = regToExtendedReg(r);
     }
 
+//     if (r == TRICORE_REG_A_9) {
+//         auto* pt = llvm::PointerType::get(getType(), 0);
+//         llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x8016D340, false);
+//         addr = irb.CreateIntToPtr(addr, pt);
+//
+//         return irb.CreateLoad(addr, "function_vector");
+//     }
+
     auto* llvmReg = getRegister(r);
     if (llvmReg == nullptr) {
         assert(false && "loadRegister() unhandled reg.");
     }
+
     return irb.CreateLoad(llvmReg);
 }
 
@@ -595,137 +646,3 @@ std::string Capstone2LlvmIrTranslatorTricore::getRegisterName(uint32_t r) const 
 
 } // namespace capstone2llvmir
 } // namespace retdec
-
-// llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOpUnary(cs_tricore* mi, llvm::IRBuilder<>& irb) {
-//     if (mi->op_count != 1) {
-//         throw Capstone2LlvmIrError("This is not a unary instruction.");
-//     }
-//
-//     return loadOp(mi->operands[0], irb);
-// }
-
-// std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorTricore::loadOpBinary(cs_tricore* mi, llvm::IRBuilder<>& irb, eOpConv ct) {
-//     if (mi->op_count != 2) {
-//         throw Capstone2LlvmIrError("This is not a binary instruction.");
-//     }
-//
-//     auto* op0 = loadOp(mi->operands[0], irb);
-//     auto* op1 = loadOp(mi->operands[1], irb);
-//     if (op0 == nullptr || op1 == nullptr) {
-//         throw Capstone2LlvmIrError("Operands loading failed.");
-//     }
-//
-//     if (op0->getType() != op1->getType()) {
-//         switch (ct) {
-//             case eOpConv::SECOND_SEXT:
-//                 op1 = irb.CreateSExtOrTrunc(op1, op0->getType());
-//                 break;
-//             case eOpConv::SECOND_ZEXT:
-//                 op1 = irb.CreateZExtOrTrunc(op1, op0->getType());
-//                 break;
-//             case eOpConv::NOTHING:
-//                 break;
-//             default:
-//                 case eOpConv::THROW:
-//                     throw Capstone2LlvmIrError("Binary operands' types not equal.");
-//         }
-//     }
-//
-//     return std::make_pair(op0, op1);
-// }
-
-// llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOpBinaryOp1(cs_tricore* mi, llvm::IRBuilder<>& irb, llvm::Type* ty) {
-//         if (mi->op_count != 2) {
-//             throw Capstone2LlvmIrError("This is not a binary instruction.");
-//         }
-//         return loadOp(mi->operands[1], irb, ty);
-// }
-
-// std::tuple<llvm::Value*, llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorTricore::loadOpTernary(cs_tricore* mi, llvm::IRBuilder<>& irb) {
-//     if (mi->op_count != 3) {
-//         throw Capstone2LlvmIrError("This is not a ternary instruction.");
-//     }
-//
-//     auto* op0 = loadOp(mi->operands[0], irb);
-//     auto* op1 = loadOp(mi->operands[1], irb);
-//     auto* op2 = loadOp(mi->operands[2], irb);
-//     if (op0 == nullptr || op1 == nullptr || op2 == nullptr) {
-//         throw Capstone2LlvmIrError("Operands loading failed.");
-//     }
-//
-//     return std::make_tuple(op0, op1, op2);
-// }
-
-// std::pair<llvm::Value*, llvm::Value*> Capstone2LlvmIrTranslatorTricore::loadOp1Op2(cs_tricore* mi, llvm::IRBuilder<>& irb, eOpConv ct) {
-//     if (mi->op_count != 3) {
-//         throw Capstone2LlvmIrError("This is not a ternary instruction.");
-//     }
-//
-//     auto* op1 = loadOp(mi->operands[1], irb);
-//     auto* op2 = loadOp(mi->operands[2], irb);
-//     if (op1 == nullptr || op2 == nullptr) {
-//             throw Capstone2LlvmIrError("Operands loading failed.");
-//     }
-//
-//     if (op1->getType() != op2->getType()) {
-//         sw{
-//     if (mi->op_count != 3) {
-//         throw Capstone2LlvmIrError("This is not a ternary instruction.");
-//     }
-//
-//     auto* op1 = loadOp(mi->operands[1], irb);
-//     auto* op2 = loadOp(mi->operands[2], irb);
-//     if (op1 == nullptr || op2 == nullptr) {
-//             throw Capstone2LlvmIrError("Operands loading failed.");
-//     }
-//
-//     if (op1->getType() != op2->getType()) {
-//         switch (ct) {
-//             case eOpConv::SECOND_SEXT:
-//             {
-//                     op2 = irb.CreateSExtOrTrunc(op2, op1->getType());
-//                     break;
-//             }
-//             case eOpConv::SECOND_ZEXT:
-//             {
-//                     op2 = irb.CreateZExtOrTrunc(op2, op1->getType());
-//                     break;
-//             }
-//             case eOpConv::NOTHING:
-//             {
-//                     break;
-//             }
-//             default:
-//             case eOpConv::THROW:
-//             {
-//                     throw Capstone2LlvmIrError("Binary operands' types not equal.");
-//             }
-//         }
-//     }
-//
-//     return std::make_pair(op1, op2);
-// }itch (ct) {
-//             case eOpConv::SECOND_SEXT:
-//             {
-//                     op2 = irb.CreateSExtOrTrunc(op2, op1->getType());
-//                     break;
-//             }
-//             case eOpConv::SECOND_ZEXT:
-//             {
-//                     op2 = irb.CreateZExtOrTrunc(op2, op1->getType());
-//                     break;
-//             }
-//             case eOpConv::NOTHING:
-//             {
-//                     break;
-//             }
-//             default:
-//             case eOpConv::THROW:
-//             {
-//                     throw Capstone2LlvmIrError("Binary operands' types not equal.");
-//             }
-//         }
-//     }
-//
-//     return std::make_pair(op1, op2);
-// }

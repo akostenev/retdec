@@ -207,9 +207,7 @@ void CopyPropagationOptimizer::doOptimization() {
 }
 
 void CopyPropagationOptimizer::runOnFunction(ShPtr<Function> func) {
-//     return; //TODO delete me
 	// Keep optimizing until there are no changes.
-	unsigned int i = 0; //TODO delete me
 	do {
 		ducs = dua->getDefUseChains(
 			func,
@@ -221,7 +219,7 @@ void CopyPropagationOptimizer::runOnFunction(ShPtr<Function> func) {
 		udcs = uda->getUseDefChains(func, ducs);
 		codeChanged = false;
 		performOptimization();
-	} while (codeChanged && i++ < 2);
+	} while (codeChanged);
 }
 
 /**

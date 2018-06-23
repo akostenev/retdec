@@ -289,6 +289,7 @@ std::map<
         {TRICORE_INS_ADDSCA, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_ADDSCA16, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_CADD, &Capstone2LlvmIrTranslatorTricore::translateAdd},
+        {TRICORE_INS_CADD16, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_MADD, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_MADD_RRR2, &Capstone2LlvmIrTranslatorTricore::translateAdd},
 
@@ -300,6 +301,7 @@ std::map<
         {TRICORE_INS_OR16_D15, &Capstone2LlvmIrTranslatorTricore::translateBitOperations},
         {TRICORE_INS_EQ16_D15, &Capstone2LlvmIrTranslatorTricore::translateBitOperations},
         {TRICORE_INS_XOR16, &Capstone2LlvmIrTranslatorTricore::translateBitOperations},
+        {TRICORE_INS_NAND_NOR, &Capstone2LlvmIrTranslatorTricore::translateBitOperations},
 
         {TRICORE_INS_BIT_OPERATIONS1, &Capstone2LlvmIrTranslatorTricore::translateBitOperations1},
         {TRICORE_INS_BIT_OPERATIONS2, &Capstone2LlvmIrTranslatorTricore::translateBitOperations2},
