@@ -35,11 +35,11 @@ void Capstone2LlvmIrTranslatorTricore::translateAdd(cs_insn* i, cs_tricore* t, l
                     break;
 
                 case 0x48: //D[c] = (A[a] == 0);
-                    add = irb.CreateSelect(irb.CreateICmpEQ(op1, constInt<0>(op1)), constInt<1>(op1), constInt<0>(op1));
+                    add = irb.CreateICmpEQ(op1, constInt<0>(op1));
                     break;
 
                 case 0x49:
-                    add = irb.CreateSelect(irb.CreateICmpNE(op1, constInt<0>(op1)), constInt<1>(op1), constInt<0>(op1));
+                    add = irb.CreateICmpNE(op1, constInt<0>(op1));
                     break;
 
                 case 0x60: //A[c] = A[b] + (D[a] << n);
@@ -58,19 +58,19 @@ void Capstone2LlvmIrTranslatorTricore::translateAdd(cs_insn* i, cs_tricore* t, l
         case TRICORE_INS_CADD:
             switch (t->op2) {
                 case 0x00: // condition = D[d] != 0; result = ((condition) ? D[a] + sign_ext(const9) : D[a]); D[c] = result[31:0];
-                    add = irb.CreateSelect(irb.CreateICmpNE(op3, llvm::ConstantInt::get(op3->getType(), 0)), irb.CreateAdd(op1, op2), op1);
+                    add = irb.CreateSelect(irb.CreateICmpNE(op3, constInt<0>(op3)), irb.CreateAdd(op1, op2), op1);
                     break;
 
                 case 0x01: // condition = (D[d] == 0); result = ((condition) ? D[a] + sign_ext(const9) : D[a]); D[c] = result[31:0];
-                    add = irb.CreateSelect(irb.CreateICmpEQ(op3, llvm::ConstantInt::get(op3->getType(), 0)), irb.CreateAdd(op1, op2), op1);
+                    add = irb.CreateSelect(irb.CreateICmpEQ(op3, constInt<0>(op3)), irb.CreateAdd(op1, op2), op1);
                     break;
 
                 case 0x04: // D[c] = ((D[d] != 0) ? D[a] : sign_ext(const9));
-                    add = irb.CreateSelect(irb.CreateICmpNE(op3, llvm::ConstantInt::get(op3->getType(), 0)), op1, op2);
+                    add = irb.CreateSelect(irb.CreateICmpNE(op3, constInt<0>(op3)), op1, op2);
                     break;
 
                 case 0x05: // D[c] = ((D[d] == 0) ? D[a] : sign_ext(const9));
-                    add = irb.CreateSelect(irb.CreateICmpEQ(op3, llvm::ConstantInt::get(op3->getType(), 0)), op1, op2);
+                    add = irb.CreateSelect(irb.CreateICmpEQ(op3, constInt<0>(op3)), op1, op2);
                     break;
 
                 default:
@@ -116,7 +116,7 @@ void Capstone2LlvmIrTranslatorTricore::translateAdd(cs_insn* i, cs_tricore* t, l
             assert(false);
     }
 
-    storeOp(t->operands[0], add, irb, eOpConv::SECOND_SEXT);
+    storeOp(t->operands[0], add, irb);
 }
 
 void Capstone2LlvmIrTranslatorTricore::translateBitOperations(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
@@ -137,29 +137,21 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations(cs_insn* i, cs_tri
             auto* bitPos2 = irb.CreateAnd(irb.CreateLShr(op2, t->operands[4].imm.value), 1);
             switch (t->op2) {
                 case 0x00: // result = !(D[a][pos1] AND D[b][pos2]); D[c] = zero_ext(result);
-                {
-                    auto* cond = irb.CreateNot(irb.CreateICmpNE(irb.CreateAnd(bitPos1, bitPos2), constInt<0>(op1)));
-                    v = irb.CreateZExt(irb.CreateSelect(cond, constInt<1>(op0), constInt<0>(op0)), op0->getType());
+                    v = irb.CreateNot(irb.CreateICmpNE(irb.CreateAnd(bitPos1, bitPos2), constInt<0>(op1)));
                     break;
-                }
+
                 case 0x01: // result = D[a][pos1] OR !D[b][pos2]; D[c] = zero_ext(result);
-                {
-                    auto* cond = irb.CreateICmpNE(irb.CreateOr(bitPos1, irb.CreateNot(bitPos2)), constInt<0>(op1));
-                    v = irb.CreateZExt(irb.CreateSelect(cond, constInt<1>(op0), constInt<0>(op0)), op0->getType());
+                    v = irb.CreateICmpNE(irb.CreateOr(bitPos1, irb.CreateNot(bitPos2)), constInt<0>(op1));
                     break;
-                }
+
                 case 0x02: //result = !(D[a][pos1] XOR D[b][pos2]); D[c] = zero_ext(result);
-                {
-                    auto* cond = irb.CreateICmpEQ(irb.CreateXor(bitPos1, bitPos2), constInt<0>(op1));
-                    v = irb.CreateZExt(irb.CreateSelect(cond, constInt<1>(op0), constInt<0>(op0)), op0->getType());
+                    v = irb.CreateICmpEQ(irb.CreateXor(bitPos1, bitPos2), constInt<0>(op1));
                     break;
-                }
+
                 case 0x03: //result = D[a][pos1] XOR D[b][pos2]; D[c] = zero_ext(result);
-                {
-                    auto* cond = irb.CreateICmpNE(irb.CreateXor(bitPos1, bitPos2), constInt<0>(op1));
-                    v = irb.CreateZExt(irb.CreateSelect(cond, constInt<1>(op0), constInt<0>(op0)), op0->getType());
+                    v = irb.CreateICmpNE(irb.CreateXor(bitPos1, bitPos2), constInt<0>(op1));
                     break;
-                }
+
                 default:
                     assert(false);
             }
@@ -171,29 +163,21 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations(cs_insn* i, cs_tri
             auto* bitPos2 = irb.CreateAnd(irb.CreateLShr(op2, t->operands[4].imm.value), 1);
             switch (t->op2) {
                 case 0x00: //result = D[a][pos1] AND D[b][pos2]; D[c] = zero_ext(result);
-                {
-                    auto* cond = irb.CreateICmpNE(irb.CreateAnd(bitPos1, bitPos2), constInt<0>(op1));
-                    v = irb.CreateZExt(irb.CreateSelect(cond, constInt<1>(op0), constInt<0>(op0)), op0->getType());
+                    v = irb.CreateICmpEQ(irb.CreateAnd(bitPos1, bitPos2), constInt<1>(op1));
                     break;
-                }
+
                 case 0x01: //result = D[a][pos1] OR D[b][pos2]; D[c] = zero_ext(result);
-                {
-                    auto* cond = irb.CreateICmpNE(irb.CreateOr(bitPos1, bitPos2), constInt<0>(op1));
-                    v = irb.CreateZExt(irb.CreateSelect(cond, constInt<1>(op0), constInt<0>(op0)), op0->getType());
+                    v = irb.CreateICmpEQ(irb.CreateOr(bitPos1, bitPos2), constInt<1>(op1));
                     break;
-                }
+
                 case 0x02: //result = !(D[a][pos1] OR D[b][pos2]); D[c] = zero_ext(result);
-                {
-                    auto* cond = irb.CreateICmpEQ(irb.CreateOr(bitPos1, bitPos2), constInt<0>(op1));
-                    v = irb.CreateZExt(irb.CreateSelect(cond, constInt<1>(op0), constInt<0>(op0)), op0->getType());
+                    v = irb.CreateICmpNE(irb.CreateOr(bitPos1, bitPos2), constInt<0>(op1));
                     break;
-                }
+
                 case 0x03: //result = D[a][pos1] AND !D[b][pos2]; D[c] = zero_ext(result);
-                {
-                    auto* cond = irb.CreateICmpNE(irb.CreateAnd(bitPos1, irb.CreateNot(bitPos2)), constInt<0>(op1));
-                    v = irb.CreateZExt(irb.CreateSelect(cond, constInt<1>(op0), constInt<0>(op0)), op0->getType());
+                    v = irb.CreateICmpEQ(irb.CreateAnd(bitPos1, irb.CreateNot(bitPos2)), constInt<1>(op1));
                     break;
-                }
+
                 default:
                     assert(false);
             }
@@ -209,7 +193,7 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations(cs_insn* i, cs_tri
             break;
 
         case TRICORE_INS_EQ16_D15: //result = (D[a] == D[b]); D[15] = zero_ext(result);
-            v = irb.CreateSelect(irb.CreateICmpEQ(op1, op2), constInt<1>(op0), constInt<0>(op0));
+            v = irb.CreateICmpEQ(op1, op2);
             break;
 
         case TRICORE_INS_XOR16: //D[a] = D[a] ^ D[b];
@@ -220,7 +204,7 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations(cs_insn* i, cs_tri
             assert(false);
     }
 
-    storeOp(t->operands[0], v, irb);
+    storeOp(t->operands[0], v, irb, eOpConv::ZEXT_TRUNC);
 }
 
 void Capstone2LlvmIrTranslatorTricore::translateBitOperations1(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
@@ -531,8 +515,10 @@ void Capstone2LlvmIrTranslatorTricore::translate8B(cs_insn* i, cs_tricore* t, ll
                 default:
                     assert(false);
             }
+            break;
+
         case TRICORE_INS_EQ16: ////result = (D[a] == sign_ext(const4)); D[15] = zero_ext(result);
-            v = irb.CreateSelect(irb.CreateICmpEQ(op1, op2), constInt<1>(op0), constInt<0>(op0));
+            v = irb.CreateICmpEQ(op1, op2);
             break;
 
         case TRICORE_INS_CMOVN16: //D[a] = ((D[15] == 0) ? sign_ext(const4) : D[a]);
@@ -773,12 +759,11 @@ void Capstone2LlvmIrTranslatorTricore::translateJl(cs_insn* i, cs_tricore* t, ll
 }
 
 void Capstone2LlvmIrTranslatorTricore::translateConditionalJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
-    op0 = ld<0>(t, irb);
     op1 = ld<1>(t, irb);
     op2 = ld<2>(t, irb);
 
     llvm::Value* cond = nullptr;
-    llvm::Value* target = op0;
+    llvm::Value* target = ld<0>(t, irb);
     switch (i->id) {
         case TRICORE_INS_JNZ_D15: //if (D[15] != 0) then PC = PC + sign_ext(disp8) * 2;
         case TRICORE_INS_JNZ16: //if (D[b] != 0) then PC = PC + zero_ext(disp4) * 2
@@ -818,12 +803,10 @@ void Capstone2LlvmIrTranslatorTricore::translateConditionalJ(cs_insn* i, cs_tric
             break;
 
         case TRICORE_INS_LOOP16: //if (A[b] != 0) then PC = PC + {27b’111111111111111111111111111, disp4, 0}; A[b] = A[b] - 1;
-        {
-            auto* sub = irb.CreateSub(op1, llvm::ConstantInt::get(op1->getType(), 1));
-            storeRegister(t->operands[1].reg, sub, irb);
-            cond = irb.CreateICmpNE(sub, llvm::ConstantInt::get(sub->getType(), 0));
+            cond = irb.CreateICmpNE(op1, constInt<0>(op1));
+            storeOp(t->operands[1], irb.CreateSub(op1, constInt<1>(op1)), irb);
             break;
-        }
+
         case TRICORE_INS_JZ:
             switch (t->op2) {
                 case 0x00: //if (A[a] == 0) then PC = PC + sign_ext(disp15) * 2;
@@ -901,14 +884,14 @@ void Capstone2LlvmIrTranslatorTricore::translateConditionalJ(cs_insn* i, cs_tric
             break;
 
         case TRICORE_INS_JNZT: //if (!D[a][n]) then PC = PC + sign_ext(disp15) * 2;
-            op1 = irb.CreateAnd(op1, 1 << t->n);
+            op1 = irb.CreateAnd(irb.CreateLShr(op1, t->n), 1);
             switch (t->op2) {
-                case 0x00:
-                    cond = irb.CreateICmpEQ(op1, constInt<0>(op1));
+                case 0x00: //if (!D[a][n]) then PC = PC + sign_ext(disp15) * 2;
+                    cond = irb.CreateICmpNE(op1, constInt<1>(op1));
                     break;
 
-                case 0x01:
-                    cond = irb.CreateICmpNE(op1, constInt<0>(op1));
+                case 0x01: //if (D[a][n]) then PC = PC + sign_ext(disp15) * 2;
+                    cond = irb.CreateICmpEQ(op1, constInt<1>(op1));
                     break;
 
                 default:
@@ -917,21 +900,21 @@ void Capstone2LlvmIrTranslatorTricore::translateConditionalJ(cs_insn* i, cs_tric
             break;
 
         case TRICORE_INS_JZT_16: //if (!D[15][n]) then PC = PC + zero_ext(disp4) * 2;
-            op1 = irb.CreateAnd(op1, 1 << t->n);
-            cond = irb.CreateICmpEQ(op1, constInt<0>(op1));
+            op1 = irb.CreateAnd(irb.CreateLShr(op1, t->n), 1);
+            cond = irb.CreateICmpNE(op1, constInt<1>(op1));
             break;
 
         case TRICORE_INS_JNZT_16: // if (D[15][n]) then PC = PC + zero_ext(disp4) * 2;
-            op1 = irb.CreateAnd(op1, 1 << t->n);
-            cond = irb.CreateICmpNE(op1, constInt<0>(op1));
+            op1 = irb.CreateAnd(irb.CreateLShr(op1, t->n), 1);
+            cond = irb.CreateICmpEQ(op1, constInt<1>(op1));
             break;
 
-        case TRICORE_INS_JGEDD: //if (D[a] >= D[b]) then PC = PC + sign_ext(disp15) * 2;
+        case TRICORE_INS_JGEDD:
             switch (t->op2) {
-                case 0x00:
+                case 0x00: //if (D[a] >= D[b]) then PC = PC + sign_ext(disp15) * 2;
                     cond = irb.CreateICmpSGE(op1, op2);
                     break;
-                case 0x01:
+                case 0x01: //if (D[a] >= D[b]) then PC = PC + sign_ext(disp15) * 2; // unsigned comparison
                     cond = irb.CreateICmpUGE(op1, op2);
                     break;
                 default:
@@ -972,13 +955,13 @@ void Capstone2LlvmIrTranslatorTricore::translateConditionalJ(cs_insn* i, cs_tric
         case TRICORE_INS_JNE_INC_DEC:
             switch (t->op2) {
                 case 0x00: //if (D[a] != sign_ext(const4)) then PC = PC + sign_ext(disp15) * 2; D[a] = D[a] + 1; The increment is unconditional.
+                    storeOp(t->operands[1], irb.CreateAdd(op1, constInt<1>(op1)), irb);
                     cond = irb.CreateICmpNE(op1, op2);
-                    storeOp(t->operands[1], irb.CreateAdd(op1, llvm::ConstantInt::get(op1->getType(), 1)), irb);
                     break;
 
                 case 0x01: //if (D[a] != sign_ext(const4)) then PC = PC + sign_ext(disp15) * 2; D[a] = D[a] - 1; The decrement is unconditional.
+                    storeOp(t->operands[1], irb.CreateSub(op1, constInt<1>(op1)), irb);
                     cond = irb.CreateICmpNE(op1, op2);
-                    storeOp(t->operands[1], irb.CreateSub(op1, llvm::ConstantInt::get(op1->getType(), 1)), irb);
                     break;
 
                 default:
@@ -990,7 +973,7 @@ void Capstone2LlvmIrTranslatorTricore::translateConditionalJ(cs_insn* i, cs_tric
             switch (t->op2) {
                 case 0x00: //if (A[b] != 0) then PC = PC + sign_ext(2 * disp15); A[b] = A[b] - 1;
                     cond = irb.CreateICmpNE(op1, constInt<0>(op1));
-                    storeOp(t->operands[1], irb.CreateSelect(cond, irb.CreateSub(op1, llvm::ConstantInt::get(op1->getType(), 1)), op1), irb);
+                    storeOp(t->operands[1], irb.CreateSelect(cond, irb.CreateSub(op1, constInt<1>(op1)), op1), irb);
                     break;
 
                 case 0x01:
@@ -1015,18 +998,35 @@ void Capstone2LlvmIrTranslatorTricore::translateLoad(cs_insn* i, cs_tricore* t, 
     op1 = ld<1>(t, irb);
 
     eOpConv ct = eOpConv::THROW;
-    switch (t->operands[1].mem.ext) {
-        case TRICORE_EXT_SEXT_TRUNC:
-            ct = eOpConv::SEXT_TRUNC;
-            break;
+    if (t->operands[1].type == TRICORE_OP_MEM) {
+        switch (t->operands[1].mem.ext) {
+            case TRICORE_EXT_SEXT_TRUNC:
+                ct = eOpConv::SEXT_TRUNC;
+                break;
 
-        case TRICORE_EXT_ZEXT_TRUNC:
-            ct = eOpConv::ZEXT_TRUNC;
-            break;
+            case TRICORE_EXT_ZEXT_TRUNC:
+                ct = eOpConv::ZEXT_TRUNC;
+                break;
 
-        default:
-            break;
+            default:
+                break;
+        }
+
+    } else if (t->operands[1].type == TRICORE_OP_IMM) {
+        switch (t->operands[1].imm.ext) {
+            case TRICORE_EXT_SEXT_TRUNC:
+                ct = eOpConv::SEXT_TRUNC;
+                break;
+
+            case TRICORE_EXT_ZEXT_TRUNC:
+                ct = eOpConv::ZEXT_TRUNC;
+                break;
+
+            default:
+                break;
+        }
     }
+
     llvm::Value* pinc = nullptr;
     switch (i->id) {
         case TRICORE_INS_LDB_PINC: //D[c] = zero_ext(M(A[b], byte)); A[b] = A[b] + 1;
@@ -1056,14 +1056,14 @@ void Capstone2LlvmIrTranslatorTricore::translateLoad(cs_insn* i, cs_tricore* t, 
 }
 
 void Capstone2LlvmIrTranslatorTricore::translateConditionalLoad(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
+    op1 = ld<1>(t, irb);
+    op2 = ld<2>(t, irb);
+
     switch (i->id) {
         case TRICORE_INS_CMOVD: //D[a] = ((D[15] != 0) ? D[b] : D[a]);
-        {
-            auto* cond = irb.CreateICmpNE(loadRegister(TRICORE_REG_D_15, irb), llvm::ConstantInt::get(getType(), 0));
-            auto irbIf = generateIfThen(cond, irb);
-            storeOp(t->operands[0], ld<1>(t, irb), irbIf);
+            storeOp(t->operands[0], irb.CreateSelect(irb.CreateICmpNE(op1, constInt<0>(op1)), op2, op0), irb);
             break;
-        }
+
         default:
             assert(false);
     }
@@ -1218,37 +1218,37 @@ void Capstone2LlvmIrTranslatorTricore::translateConditionalStore(cs_insn* i, cs_
         case TRICORE_INS_SELN:
             switch (t->op2) {
                 case 0x00: // condition = (D[d] != 0); result = ((condition) ? D[a] + D[b] : D[a]); D[c] = result[31:0];
-                    cond = irb.CreateICmpNE(op3, llvm::ConstantInt::get(op3->getType(), 0));
+                    cond = irb.CreateICmpNE(op3, constInt<0>(op3));
                     vTrue = irb.CreateAdd(op1, op2);
                     vFalse = op1;
                     break;
 
                 case 0x01: //condition = (D[d] == 0); result = ((condition) ? D[a] + D[b] : D[a]); D[c] = result[31:0];
-                    cond = irb.CreateICmpEQ(op3, llvm::ConstantInt::get(op3->getType(), 0));
+                    cond = irb.CreateICmpEQ(op3, constInt<0>(op3));
                     vTrue = irb.CreateAdd(op1, op2);
                     vFalse = op1;
                     break;
 
                 case 0x02: // condition = (D[d] != 0); result = ((condition) ? D[a] - D[b] : D[a]); D[c] = result[31:0];
-                    cond = irb.CreateICmpNE(op3, llvm::ConstantInt::get(op3->getType(), 0));
+                    cond = irb.CreateICmpNE(op3, constInt<0>(op3));
                     vTrue = irb.CreateSub(op1, op2);
                     vFalse = op1;
                     break;
 
                 case 0x03: // condition = (D[d] == 0); result = ((condition) ? D[a] - D[b] : D[a]); D[c] = result[31:0];
-                    cond = irb.CreateICmpEQ(op3, llvm::ConstantInt::get(op3->getType(), 0));
+                    cond = irb.CreateICmpEQ(op3, constInt<0>(op3));
                     vTrue = irb.CreateSub(op1, op2);
                     vFalse = op1;
                     break;
 
                 case 0x04: //D[c] = ((D[d] != 0) ? D[a] : D[b]);
-                    cond = irb.CreateICmpNE(op3, llvm::ConstantInt::get(op3->getType(), 0));
+                    cond = irb.CreateICmpNE(op3, constInt<0>(op3));
                     vTrue = op1;
                     vFalse = op2;
                     break;
 
                 case 0x05: //D[c] = ((D[d] == 0) ? D[a] : D[b]);
-                    cond = irb.CreateICmpEQ(op3, llvm::ConstantInt::get(op3->getType(), 0));
+                    cond = irb.CreateICmpEQ(op3, constInt<0>(op3));
                     vTrue = op1;
                     vFalse = op2;
                     break;
@@ -1275,16 +1275,13 @@ void Capstone2LlvmIrTranslatorTricore::translateSub(cs_insn* i, cs_tricore* t, l
     switch (i->id) {
         case TRICORE_INS_SUBA10: //A[10] = A[10] - zero_ext(const8);
         case TRICORE_INS_SUBD: //result = D[a] - D[b]; D[a] = result[31:0];
-            v =  irb.CreateSub(op0, op1);
+            v = irb.CreateSub(op0, op1);
             break;
 
         case TRICORE_INS_SUBD1516: //result = D[15] - D[b]; D[a] = result[31:0];
+        case TRICORE_INS_SUBD15: //result = D[a] - D[b]; D[15] = result[31:0];
             v = irb.CreateSub(op1, op2);
             break;
-
-        case TRICORE_INS_SUBD15: //result = D[a] - D[b]; D[15] = result[31:0];
-            storeRegister(TRICORE_REG_D_15, irb.CreateSub(op0, op1), irb);
-            return;
 
         case TRICORE_INS_MSUB:
             switch (t->op2) {
@@ -1390,140 +1387,122 @@ void Capstone2LlvmIrTranslatorTricore::translate0B(cs_insn* i, cs_tricore* t, ll
     auto* lastBitInDc = irb.CreateAnd(op0, 1);
     auto* vTrue = irb.CreateOr(op0, 1);
     auto* vFalse = irb.CreateAnd(op0, ~(0 << 30) << 1);
-
+    llvm::Value* v = nullptr;
     switch (t->op2) {
         case 0x00: //result = D[a] + D[b]; D[c] = result[31:0];
         case 0x02: //result = D[a] + D[b]; D[c] = ssov(result, 32);
         case 0x03: //result = D[a] + D[b]; // unsigned addition D[c] = suov(result, 32);
         case 0x04: //result = D[a] + D[b]; D[c] = result[31:0]; carry_out = carry(D[a],D[b],0); //TODO flag
         case 0x05: //result = D[a] + D[b] + PSW.C; D[c] = result[31:0]; carry_out = carry(D[a], D[b], PSW.C); //TODO CARRY
-            storeOp(t->operands[0], irb.CreateAdd(op1, op2), irb);
+            v = irb.CreateAdd(op1, op2);
             break;
 
         case 0x08: //SUBD result = D[a] - D[b]; D[c] = result[31:0];
         case 0x0A: //result = D[a] - D[b]; D[c] = ssov(result, 32);
-            storeOp(t->operands[0], irb.CreateSub(op1, op2), irb);
+            v = irb.CreateSub(op1, op2);
             break;
 
         case 0x11: //result = (D[a] != D[b]); D[c] = zero_ext(result);
-            storeOp(t->operands[0], irb.CreateSelect(irb.CreateICmpNE(op1, op2), constInt<1>(op1), constInt<0>(op1)), irb);
+            v = irb.CreateICmpNE(op1, op2);
             break;
 
         case 0x12: //result = (D[a] < D[b]); D[c] = zero_ext(result);
-            storeOp(t->operands[0], irb.CreateSelect(irb.CreateICmpSLT(op1, op2), constInt<1>(op1), constInt<0>(op1)), irb);
+            v = irb.CreateICmpSLT(op1, op2);
             break;
 
         case 0x13: //result = (D[a] < D[b]); // unsigned D[c] = zero_ext(result);
-        {
-            llvm::Value* cond = irb.CreateICmpULT(op1, op2);
-            llvm::Value* sel = irb.CreateSelect(cond, llvm::ConstantInt::get(op1->getType(), 1), constInt<0>(op1));
-            storeOp(t->operands[0], sel, irb, eOpConv::ZEXT_TRUNC);
+            v = irb.CreateICmpULT(op1, op2);
             break;
-        }
+
         case 0x14: //result = (D[a] >= D[b]); D[c] = zero_ext(result);
-        {
-            llvm::Value* cond = irb.CreateICmpSGE(op1, op2);
-            llvm::Value* sel = irb.CreateSelect(cond, llvm::ConstantInt::get(op1->getType(), 1), constInt<0>(op1));
-            storeOp(t->operands[0], sel, irb, eOpConv::ZEXT_TRUNC);
+            v = irb.CreateICmpSGE(op1, op2);
             break;
-        }
+
         case 0x15: //result = (D[a] >= D[b]); // unsigned D[c] = zero_ext(result);
-        {
-            llvm::Value* cond = irb.CreateICmpUGE(op1, op2);
-            llvm::Value* sel = irb.CreateSelect(cond, llvm::ConstantInt::get(op1->getType(), 1), constInt<0>(op1));
-            storeOp(t->operands[0], sel, irb, eOpConv::ZEXT_TRUNC);
+            v = irb.CreateICmpUGE(op1, op2);
             break;
-        }
+
         case 0x18: //D[c] = (D[a] < D[b]) ? D[a] : D[b];
-        {
-            auto* sle = irb.CreateICmpSLT(op1, op2);
-            auto* val = irb.CreateSelect(sle, op1, op2);
-            storeOp(t->operands[0], val, irb);
+            v = irb.CreateICmpSLT(op1, op2);
             break;
-        }
+
         case 0x1A: //D[c] = (D[a] > D[b]) ? D[a] : D[b];
-        {
-            auto* sle = irb.CreateICmpSGT(op1, op2);
-            auto* val = irb.CreateSelect(sle, op1, op2);
-            storeOp(t->operands[0], val, irb);
+            v = irb.CreateICmpSGT(op1, op2);
             break;
-        }
+
         case 0x1C: //result = (D[b] >= 0) ? D[b] : (0 - D[b]); D[c] = result[31:0];
         case 0x1D: //result = (D[b] >= 0) ? D[b] : (0 - D[b]); D[c] = ssov(result, 32);
-        {
-            auto* sle = irb.CreateICmpSGE(op0, constInt<0>(op1));
-            auto* val = irb.CreateSelect(sle, op1, irb.CreateNeg(op1));
-            storeOp(t->operands[0], val, irb);
+            v = irb.CreateSelect(irb.CreateICmpSGE(op1, constInt<0>(op1)), op1, irb.CreateNeg(op1));
             break;
-        }
+
         case 0x20: //D[c] = {D[c][31:1], D[c][0] AND (D[a] == D[b])};
         {
             auto* condBit = irb.CreateSelect(irb.CreateICmpEQ(op1, op2), constInt<1>(op0), constInt<0>(op0));
             auto* cond = irb.CreateICmpNE(irb.CreateAnd(lastBitInDc, condBit), constInt<0>(op0));
-            storeOp(t->operands[0], irb.CreateSelect(cond, vTrue, vFalse), irb);
+            v = irb.CreateSelect(cond, vTrue, vFalse);
             break;
         }
         case 0x21: //D[c] = {D[c][31:1], D[c][0] AND (D[a] != D[b])};
         {
             auto* condBit = irb.CreateSelect(irb.CreateICmpNE(op1, op2), constInt<1>(op0), constInt<0>(op0));
             auto* cond = irb.CreateICmpNE(irb.CreateAnd(lastBitInDc, condBit), constInt<0>(op0));
-            storeOp(t->operands[0], irb.CreateSelect(cond, vTrue, vFalse), irb);
+            v = irb.CreateSelect(cond, vTrue, vFalse);
             break;
         }
         case 0x23: //D[c] = {D[c][31:1], D[c][0] AND (D[a] < D[b])}; // unsigned
         {
             auto* condBit = irb.CreateSelect(irb.CreateICmpULT(op1, op2), constInt<1>(op0), constInt<0>(op0));
             auto* cond = irb.CreateICmpNE(irb.CreateAnd(lastBitInDc, condBit), constInt<0>(op0));
-            storeOp(t->operands[0], irb.CreateSelect(cond, vTrue, vFalse), irb);
+            v = irb.CreateSelect(cond, vTrue, vFalse);
             break;
         }
         case 0x25: //D[c] = {D[c][31:1], D[c][0] AND (D[a] >= D[b])}; // unsigned
         {
             auto* condBit = irb.CreateSelect(irb.CreateICmpUGE(op1, op2), constInt<1>(op0), constInt<0>(op0));
             auto* cond = irb.CreateICmpNE(irb.CreateAnd(lastBitInDc, condBit), constInt<0>(op0));
-            storeOp(t->operands[0], irb.CreateSelect(cond, vTrue, vFalse), irb);
+            v = irb.CreateSelect(cond, vTrue, vFalse);
             break;
         }
         case 0x27: //D[c] = {D[c][31:1], D[c][0] OR (D[a] == D[b])};
         {
             auto* condBit = irb.CreateSelect(irb.CreateICmpEQ(op1, op2), constInt<1>(op0), constInt<0>(op0));
             auto* cond = irb.CreateICmpNE(irb.CreateOr(lastBitInDc, condBit), constInt<0>(op0));
-            storeOp(t->operands[0], irb.CreateSelect(cond, vTrue, vFalse), irb);
+            v = irb.CreateSelect(cond, vTrue, vFalse);
             break;
         }
         case 0x28: //D[c] = {D[c][31:1], D[c][0] OR (D[a] != D[b])};
         {
             auto* condBit = irb.CreateSelect(irb.CreateICmpNE(op1, op2), constInt<1>(op0), constInt<0>(op0));
             auto* cond = irb.CreateICmpNE(irb.CreateOr(lastBitInDc, condBit), constInt<0>(op0));
-            storeOp(t->operands[0], irb.CreateSelect(cond, vTrue, vFalse), irb);
+            v = irb.CreateSelect(cond, vTrue, vFalse);
             break;
         }
         case 0x29: // D[c] = {D[c][31:1], D[c][0] OR (D[a] < D[b])};
         {
             auto* condBit = irb.CreateSelect(irb.CreateICmpSLT(op1, op2), constInt<1>(op0), constInt<0>(op0));
             auto* cond = irb.CreateICmpNE(irb.CreateOr(lastBitInDc, condBit), constInt<0>(op0));
-            storeOp(t->operands[0], irb.CreateSelect(cond, vTrue, vFalse), irb);
+            v = irb.CreateSelect(cond, vTrue, vFalse);
             break;
         }
         case 0x2A: //D[c] = {D[c][31:1], D[c][0] OR (D[a] < D[b])}; // unsigned
         {
             auto* condBit = irb.CreateSelect(irb.CreateICmpULT(op1, op2), constInt<1>(op0), constInt<0>(op0));
             auto* cond = irb.CreateICmpNE(irb.CreateOr(lastBitInDc, condBit), constInt<0>(op0));
-            storeOp(t->operands[0], irb.CreateSelect(cond, vTrue, vFalse), irb);
+            v = irb.CreateSelect(cond, vTrue, vFalse);
             break;
         }
         case 0x2B: //D[c] = {D[c][31:1], D[c][0] OR (D[a] >= D[b])};
         {
             auto* condBit = irb.CreateSelect(irb.CreateICmpSGE(op1, op2), constInt<1>(op0), constInt<0>(op0));
             auto* cond = irb.CreateICmpNE(irb.CreateOr(lastBitInDc, condBit), constInt<0>(op0));
-            storeOp(t->operands[0], irb.CreateSelect(cond, vTrue, vFalse), irb);
+            v = irb.CreateSelect(cond, vTrue, vFalse);
             break;
         }
         case 0x2C: //D[c] = {D[c][31:1], D[c][0] OR (D[a] >= D[b])}; // unsigned
         {
             auto* condBit = irb.CreateSelect(irb.CreateICmpUGE(op1, op2), constInt<1>(op0), constInt<0>(op0));
             auto* cond = irb.CreateICmpNE(irb.CreateOr(lastBitInDc, condBit), constInt<0>(op0));
-            storeOp(t->operands[0], irb.CreateSelect(cond, vTrue, vFalse), irb);
+            v = irb.CreateSelect(cond, vTrue, vFalse);
             break;
         }
         case 0x7e: //sat_neg = (D[a] < -8000 H ) ? -8000 H : D[a]; D[c] = (sat_neg > 7FFF H ) ? 7FFF H : sat_neg;
@@ -1531,13 +1510,15 @@ void Capstone2LlvmIrTranslatorTricore::translate0B(cs_insn* i, cs_tricore* t, ll
             auto* cond = irb.CreateICmpSGE(op1, llvm::ConstantInt::get(op1->getType(), -0x8000, true));
             auto* sel = irb.CreateSelect(cond, op1, llvm::ConstantInt::get(op1->getType(), -0x8000, true));
             auto* cond2 = irb.CreateICmpSGT(sel, llvm::ConstantInt::get(sel->getType(), 0x7FFF));
-            auto* sel2 = irb.CreateSelect(cond2, llvm::ConstantInt::get(sel->getType(), 0x7FFF), sel);
-            storeOp(t->operands[0], sel2, irb);
+            v = irb.CreateSelect(cond2, llvm::ConstantInt::get(sel->getType(), 0x7FFF), sel);
             break;
         }
         default:
             assert(false);
     }
+
+    assert(v);
+    storeOp(t->operands[0], v, irb, eOpConv::ZEXT_TRUNC);
 }
 
 void Capstone2LlvmIrTranslatorTricore::translate00(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {

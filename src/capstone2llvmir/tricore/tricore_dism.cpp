@@ -531,14 +531,20 @@ void dismSRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
         case TRICORE_INS_ANDD: //D[a] = D[a] & D[b];
         case TRICORE_INS_SUBD: //result = D[a] - D[b]; D[a] = result[31:0];
         case TRICORE_INS_ADDDD: // result = D[a] + D[b]; D[a] = result[31:0];
-        case TRICORE_INS_SUBD15: //result = D[a] - D[b]; D[15] = result[31:0];
-        case TRICORE_INS_CMOVD: //D[a] = ((D[15] != 0) ? D[b] : D[a]);
         case TRICORE_INS_MULD2: //result = D[a] * D[b]; D[a] = result[31:0];
         case TRICORE_INS_XOR16: //D[a] = D[a] ^ D[b];
             t->operands[0] = getRegD(s1d);
             t->operands[1] = getRegD(s2);
             break;
 
+        case TRICORE_INS_SUBD15: //result = D[a] - D[b]; D[15] = result[31:0];
+            t->op_count = 3;
+            t->operands[0] = TRICORE_REG_D_15;
+            t->operands[1] = getRegD(s1d);
+            t->operands[2] = getRegD(s2);
+            break;
+
+        case TRICORE_INS_CMOVD: //D[a] = ((D[15] != 0) ? D[b] : D[a]);
         case TRICORE_INS_SUBD1516: //result = D[15] - D[b]; D[a] = result[31:0];
             t->op_count = 3;
             t->operands[0] = getRegD(s1d);
