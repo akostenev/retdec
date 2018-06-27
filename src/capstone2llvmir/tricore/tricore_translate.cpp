@@ -1056,6 +1056,7 @@ void Capstone2LlvmIrTranslatorTricore::translateLoad(cs_insn* i, cs_tricore* t, 
 }
 
 void Capstone2LlvmIrTranslatorTricore::translateConditionalLoad(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
+    op0 = ld<0>(t, irb);
     op1 = ld<1>(t, irb);
     op2 = ld<2>(t, irb);
 
