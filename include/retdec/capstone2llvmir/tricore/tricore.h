@@ -11,6 +11,7 @@
 #include <bitset>
 #include <tuple>
 #include <utility>
+#include <map>
 
 #include "retdec/capstone2llvmir/capstone2llvmir.h"
 #include "retdec/capstone2llvmir/tricore/tricore_defs.h"
@@ -90,12 +91,17 @@ protected:
         }
         return loadOp(t->operands[N], irb);
     };
-    llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb);
-    llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty);
+
+    llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty = nullptr);
     llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::THROW);
 
     llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb, bool extended = false);
     llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::THROW, bool extended = false);
+
+private:
+    std::map<std::pair<tricore_reg, uint64_t>, llvm::GlobalValue*> _memToGlobalValue;
+    std::map<tricore_reg, llvm::ConstantInt*> _initGlobalAddress;
+    llvm::Value* getMemToGlobalValue(tricore_reg r, uint64_t disp, uint8_t size);
 
 protected:
     static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>&)> _i2fm;

@@ -964,12 +964,12 @@ ShPtr<Statement> OrigLLVMIR2BIRConverter::visitBasicBlockOrLoop(llvm::BasicBlock
 	// cases. This is why there is the following check to avoid infinite
 	// recursion. The number 25 below has no greater meaning; it's just a
 	// number that popped into my mind (and all backend tests pass correctly).
-	if (++processedBBs[bb] > 25) {
-		ShPtr<Statement> emptyStmt(EmptyStmt::create());
-		addDebugCommentToStatement(emptyStmt,
-			"Detected a possible infinite recursion (goto support failed); quitting...");
-		return emptyStmt;
-	}
+// 	if (++processedBBs[bb] > 25) {
+// 		ShPtr<Statement> emptyStmt(EmptyStmt::create());
+// 		addDebugCommentToStatement(emptyStmt,
+// 			"Detected a possible infinite recursion (goto support failed); quitting...");
+// 		return emptyStmt;
+// 	}
 
 	if (llvm::Loop *l = branchInfo->getLoopFor(bb)) {
 		if (l->getHeader() == bb) {

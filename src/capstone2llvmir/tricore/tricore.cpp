@@ -51,7 +51,7 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
     _inCondition = false;
     uint64_t address = a;
 
-    if (address & 1) {
+    if (address & 1) { //unaligned address, error, return
         return res;
     }
 
@@ -123,13 +123,12 @@ void Capstone2LlvmIrTranslatorTricore::translateInstruction(cs_insn* i, llvm::IR
     if (fIt != _i2fm.end() && fIt->second != nullptr) {
         auto f = fIt->second;
 
-        cs_tricore t(i);
+        cs_tricore t(i); // dism to capstone-tricore
+        (this->*f)(i, &t, irb); // translate to LLVM-IR
 
-        (this->*f)(i, &t, irb);
     } else {
 
-        //Check if SRRS op format
-        if (isSrrsFormat(i->id)) {
+        if (isSrrsFormat(i->id)) { //Check if SRRS op format
             i->id = i->id & SRRSMASK;
             translateInstruction(i, irb);
             return;
@@ -152,67 +151,16 @@ void Capstone2LlvmIrTranslatorTricore::translateInstruction(cs_insn* i, llvm::IR
     }
 }
 
-llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
-    auto* a1t = _branchFunction->getArgumentList().front().getType();
-
-    if (relative) {
-        auto* pc = llvm::ConstantInt::get(getType(), i->address);
-        t = irb.CreateAdd(pc, t);
-    }
-
-    t = irb.CreateSExtOrTrunc(t, a1t);
-    _branchGenerated = irb.CreateCall(_branchFunction, {t});
-    return _branchGenerated;
-}
-
-llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateCallFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
-        auto* a1t = _callFunction->getArgumentList().front().getType();
-
-    if (relative) {
-        auto* pc = llvm::ConstantInt::get(getType(), i->address);
-        t = irb.CreateAdd(pc, t);
-    }
-
-    t = irb.CreateSExtOrTrunc(t, a1t);
-    _branchGenerated = irb.CreateCall(_callFunction, {t});
-    return _branchGenerated;
-}
-
-llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateCondBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* cond, llvm::Value* t, bool relative) {
-    auto* a1t = _condBranchFunction->getArgumentList().back().getType();
-
-    if (relative) {
-        auto* pc = llvm::ConstantInt::get(getType(), i->address);
-        t = irb.CreateAdd(pc, t);
-    }
-
-    t = irb.CreateSExtOrTrunc(t, a1t);
-    _branchGenerated = irb.CreateCall(_condBranchFunction, {cond, t});
-    return _branchGenerated;
-}
-
-llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateReturnFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
-    auto* a1t = _returnFunction->getArgumentList().front().getType();
-
-    if (relative) {
-        auto* pc = llvm::ConstantInt::get(getType(), i->address);
-        t = irb.CreateAdd(pc, t);
-    }
-
-    t = irb.CreateSExtOrTrunc(t, a1t);
-    _branchGenerated = irb.CreateCall(_returnFunction, {t});
-    return _branchGenerated;
-}
-
-llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb) {
-    if (op.extended) {
-        return loadOp(op, irb, llvm::Type::getInt64Ty(_module->getContext()));
-    } else {
-        return loadOp(op, irb, llvm::Type::getInt32Ty(_module->getContext()));
-    }
-}
-
 llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty) {
+
+    if (!ty) {
+        if (op.extended) {
+            ty = llvm::Type::getInt64Ty(_module->getContext());
+        } else {
+            ty = llvm::Type::getInt32Ty(_module->getContext());
+        }
+    }
+
     switch (op.type) {
         case TRICORE_OP_REG:
             return loadRegister(op.reg, irb, op.extended);
@@ -254,7 +202,7 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
             } else {
                 if (op.mem.disp.value == 0) {
                     addr = baseR;
-                } else {
+                } else { // base register and disp is set
                     if (op.mem.op == TRICORE_MEM_OP_NOTHING) { //default mem(A[a], disp): load mem(A[a], disp)
                         addr = irb.CreateAdd(baseR, disp);
 
@@ -267,12 +215,38 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
                         storeRegister(op.mem.base, addr, irb); //pinc A[a] += disp)
 
                     } else if (op.mem.op == TRICORE_MEM_OP_LEA) { // mem(A[a], disp): load EA = A[a] + disp
+                        switch (op.mem.base) {
+                            case TRICORE_REG_A_0:
+                            case TRICORE_REG_A_1:
+                            case TRICORE_REG_A_2:
+                            case TRICORE_REG_A_9:
+                                return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
+
+                            default:
+                                break;
+
+                        }
+
                         addr = irb.CreateAdd(baseR, disp);
                         return addr;
 
                     } else {
                         assert(false && "UNKNOWN OP FOR LOAD TRICORE_MEM");
                     }
+                }
+            }
+
+            if (baseR) {
+                switch (op.mem.base) {
+                    case TRICORE_REG_A_0:
+                    case TRICORE_REG_A_1:
+                    case TRICORE_REG_A_2:
+                    case TRICORE_REG_A_9:
+                        return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
+
+                    default:
+                        break;
+
                 }
             }
 
@@ -350,6 +324,19 @@ llvm::Instruction* Capstone2LlvmIrTranslatorTricore::storeOp(cs_tricore_op& op, 
                 v = irb.CreateZExtOrTrunc(v, getType(op.mem.size));
             }
 
+            if (baseR) {
+                switch (op.mem.base) {
+                    case TRICORE_REG_A_0:
+                    case TRICORE_REG_A_1:
+                    case TRICORE_REG_A_2:
+                    case TRICORE_REG_A_9:
+                        return irb.CreateStore(v, getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
+
+                    default:
+                        break;
+
+                }
+            }
 
             auto* pt = llvm::PointerType::get(v->getType(), 0);
             addr = irb.CreateIntToPtr(addr, pt);
@@ -380,27 +367,27 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadRegister(uint32_t r, llvm::IR
         r = regToExtendedReg(r);
     }
 
-    if (r == TRICORE_REG_A_0) { //LDRAM:D0009DC0 __small_data
-        auto* pt = llvm::PointerType::get(getType(), 0);
-        llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x0009DC0, false);
-        addr = irb.CreateIntToPtr(addr, pt);
-
-        return irb.CreateLoad(addr, "__small_data");
-
-    } else if (r == TRICORE_REG_A_1) { //PFLASH:8002CF9C __literal_data
-        auto* pt = llvm::PointerType::get(getType(), 0);
-        llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x002CF9C, false);
-        addr = irb.CreateIntToPtr(addr, pt);
-
-        return irb.CreateLoad(addr, "__literal_data");
-
-    } else if (r == TRICORE_REG_A_9) {
-        auto* pt = llvm::PointerType::get(getType(), 0);
-        llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x8016D340, false);
-        addr = irb.CreateIntToPtr(addr, pt);
-
-        return irb.CreateLoad(addr, "function_vector");
-    }
+//     if (r == TRICORE_REG_A_0) { //LDRAM:D0009DC0 __small_data
+//         auto* pt = llvm::PointerType::get(getType(), 0);
+//         llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x0009DC0, false);
+//         addr = irb.CreateIntToPtr(addr, pt);
+//
+//         return irb.CreateLoad(addr, "__small_data");
+//
+//     } else if (r == TRICORE_REG_A_1) { //PFLASH:8002CF9C __literal_data
+//         auto* pt = llvm::PointerType::get(getType(), 0);
+//         llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x002CF9C, false);
+//         addr = irb.CreateIntToPtr(addr, pt);
+//
+//         return irb.CreateLoad(addr, "__literal_data");
+//
+//     } else if (r == TRICORE_REG_A_9) {
+//         auto* pt = llvm::PointerType::get(getType(), 0);
+//         llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x8016D340, false);
+//         addr = irb.CreateIntToPtr(addr, pt);
+//
+//         return irb.CreateLoad(addr, "function_vector");
+//     }
 
     auto* llvmReg = getRegister(r);
     if (llvmReg == nullptr) {
@@ -451,6 +438,19 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
         }
     }
 
+    switch (r) {
+        case TRICORE_REG_A_0:
+        case TRICORE_REG_A_1:
+        case TRICORE_REG_A_2:
+        case TRICORE_REG_A_9:
+        {
+            return irb.CreateStore(val, getMemToGlobalValue(tricore_reg(r), 0, 32));
+        }
+        default:
+            break;
+    }
+
+
     if (extended) { //update low and high registers
         auto* lReg = getRegister(pRegs.first);
         auto* lType = getRegisterType(pRegs.first);
@@ -487,6 +487,95 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
 //     }
 
     return irb.CreateStore(val, llvmReg);
+}
+
+
+llvm::Value* Capstone2LlvmIrTranslatorTricore::getMemToGlobalValue(tricore_reg r, uint64_t disp, uint8_t size) {
+    auto fGlobalValue = _memToGlobalValue.find(std::make_pair(r, disp));
+
+    if (fGlobalValue != std::end(_memToGlobalValue)) {
+        return fGlobalValue->second;
+    } else {
+
+        llvm::ConstantInt* init = nullptr;
+        auto fInit = _initGlobalAddress.find(r);
+        if (fInit == std::end(_initGlobalAddress)) {
+            init = llvm::ConstantInt::get(getType(size), 0);
+        } else {
+            init = fInit->second;
+        }
+
+        std::stringstream ss;
+        ss << getRegisterName(r) << "_" << disp;
+
+        auto* gv = new llvm::GlobalVariable(
+                        *_module,
+                        getType(size),
+                        false, // isConstant
+                        llvm::GlobalValue::ExternalLinkage,
+                        init,
+                        ss.str(),
+                        nullptr,
+                        llvm::GlobalValue::ThreadLocalMode::NotThreadLocal,
+                        0,
+                        true
+        );
+
+        _memToGlobalValue.insert(std::make_pair(std::make_pair(r, disp), gv));
+        return gv;
+    }
+}
+
+llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
+    auto* a1t = _branchFunction->getArgumentList().front().getType();
+
+    if (relative) {
+        auto* pc = llvm::ConstantInt::get(getType(), i->address);
+        t = irb.CreateAdd(pc, t);
+    }
+
+    t = irb.CreateSExtOrTrunc(t, a1t);
+    _branchGenerated = irb.CreateCall(_branchFunction, {t});
+    return _branchGenerated;
+}
+
+llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateCallFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
+        auto* a1t = _callFunction->getArgumentList().front().getType();
+
+    if (relative) {
+        auto* pc = llvm::ConstantInt::get(getType(), i->address);
+        t = irb.CreateAdd(pc, t);
+    }
+
+    t = irb.CreateSExtOrTrunc(t, a1t);
+    _branchGenerated = irb.CreateCall(_callFunction, {t});
+    return _branchGenerated;
+}
+
+llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateCondBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* cond, llvm::Value* t, bool relative) {
+    auto* a1t = _condBranchFunction->getArgumentList().back().getType();
+
+    if (relative) {
+        auto* pc = llvm::ConstantInt::get(getType(), i->address);
+        t = irb.CreateAdd(pc, t);
+    }
+
+    t = irb.CreateSExtOrTrunc(t, a1t);
+    _branchGenerated = irb.CreateCall(_condBranchFunction, {cond, t});
+    return _branchGenerated;
+}
+
+llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateReturnFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
+    auto* a1t = _returnFunction->getArgumentList().front().getType();
+
+    if (relative) {
+        auto* pc = llvm::ConstantInt::get(getType(), i->address);
+        t = irb.CreateAdd(pc, t);
+    }
+
+    t = irb.CreateSExtOrTrunc(t, a1t);
+    _branchGenerated = irb.CreateCall(_returnFunction, {t});
+    return _branchGenerated;
 }
 
 llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::generateSpecialAsm2LlvmInstr(llvm::IRBuilder<>& irb, cs_insn* i) {

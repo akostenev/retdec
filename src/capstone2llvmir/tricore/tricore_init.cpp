@@ -90,6 +90,16 @@ void Capstone2LlvmIrTranslatorTricore::initializeRegNameMap()
     };
 
     _reg2name = std::move(r2n);
+
+    std::map<tricore_reg, llvm::ConstantInt*> initGlobalAddress =
+    {
+        {TRICORE_REG_A_0, llvm::ConstantInt::get(getType(), 0x00009DC0)},
+        {TRICORE_REG_A_1, llvm::ConstantInt::get(getType(), 0x0002CF9C)},
+        {TRICORE_REG_A_9, llvm::ConstantInt::get(getType(), 0x8016D340)}
+    };
+
+    _initGlobalAddress = std::move(initGlobalAddress);
+
 }
 
 /**
