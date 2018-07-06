@@ -392,6 +392,7 @@ typedef enum tricore_insn {
     // _z := zero extend
 
     TRICORE_INS_ADD16 = 0x12,
+    TRICORE_INS_ADD16_SSOV = 0x22,
     TRICORE_INS_ADD16_D15_DD = 0x1A,
     TRICORE_INS_ADD16_D15 = 0x9A,
     TRICORE_INS_ADD16_D15_c = 0x92,
@@ -427,6 +428,8 @@ typedef enum tricore_insn {
     TRICORE_INS_CMOVD = 0x2A,
 
     TRICORE_INS_CMP = 0x8B,
+
+    TRICORE_INS_DEXTR = 0x77,
 
     TRICORE_INS_DIV = 0x4B,
     TRICORE_INS_DVSTEP = 0x6B,

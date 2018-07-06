@@ -317,7 +317,7 @@ bool registerCanBeParameterAccordingToAbi(Config* _config, llvm::Value* val)
         {
                 static std::set<std::string> names =
                     {
-                        "a0", "a1", "a2",                                     "a9",
+                        "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10", "a11", "a12", "a13", "a14",
                                                 "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14",
 //                         "e0",       "e2",       "e4",       "e6",       "e8",       "e10",        "e12",        "e14",
 //                         "p0",       "p2",       "p4",       "p6",       "p8",       "p10",        "p12",        "p14",

@@ -288,6 +288,7 @@ std::map<
 
         {TRICORE_INS_ADD16_D15_DD, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_ADD16, &Capstone2LlvmIrTranslatorTricore::translateAdd},
+        {TRICORE_INS_ADD16_SSOV, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_ADDA, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_ADD16_D15, &Capstone2LlvmIrTranslatorTricore::translateAdd},
         {TRICORE_INS_ADD16_D15_c, &Capstone2LlvmIrTranslatorTricore::translateAdd},
@@ -330,6 +331,7 @@ std::map<
         {TRICORE_INS_DIV, &Capstone2LlvmIrTranslatorTricore::translateDiv},
         {TRICORE_INS_DVSTEP, &Capstone2LlvmIrTranslatorTricore::translateDiv},
 
+        {TRICORE_INS_DEXTR, &Capstone2LlvmIrTranslatorTricore::translateExtr},
         {TRICORE_INS_EXTR, &Capstone2LlvmIrTranslatorTricore::translateExtr},
         {TRICORE_INS_EXTR_INSR, &Capstone2LlvmIrTranslatorTricore::translateExtr},
         {TRICORE_INS_INSERT_IMASK, &Capstone2LlvmIrTranslatorTricore::translateInsertImask},

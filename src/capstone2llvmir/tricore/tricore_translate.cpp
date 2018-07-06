@@ -22,6 +22,7 @@ void Capstone2LlvmIrTranslatorTricore::translateAdd(cs_insn* i, cs_tricore* t, l
             add = irb.CreateAdd(op1, op2);
             break;
 
+        case TRICORE_INS_ADD16_SSOV: //result = D[a] + D[b]; D[a] = ssov(result, 32);
         case TRICORE_INS_ADDA: //A[a] = A[a] + sign_ext(const4);
         case TRICORE_INS_ADDD_c: //result = D[a] + sign_ext(const4); D[a] = result[31:0];
         case TRICORE_INS_ADDDD: //result = D[a] + D[b]; D[a] = result[31:0];
@@ -373,6 +374,10 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations2(cs_insn* i, cs_tr
             //***UNIMPLEMENTED
             return;
 
+        case 0x1D: //result = leading_signs(D[a]) - 1; D[c] = zero_ext(result);
+            //***UNIMPLEMENTED
+            return;
+
         default:
             assert(false);
     }
@@ -426,6 +431,22 @@ void Capstone2LlvmIrTranslatorTricore::translate8B(cs_insn* i, cs_tricore* t, ll
 
                 case 0x15: //result = (D[a] >= zero_ext(const9)); // unsigned D[c] = zero_ext(result);
                     v = irb.CreateICmpUGE(op1, op2);
+                    break;
+
+                case 0x18: //D[c] = (D[a] < sign_ext(const9)) ? D[a] : sign_ext(const9);
+                    v = irb.CreateSelect(irb.CreateICmpSLT(op1, op2), op1, op2);
+                    break;
+
+                case 0x19: //D[c] = (D[a] < zero_ext(const9)) ? D[a] : zero_ext(const9); // unsigned
+                    v = irb.CreateSelect(irb.CreateICmpULT(op1, op2), op1, op2);
+                    break;
+
+                case 0x1A: //D[c] = (D[a] > sign_ext(const9)) ? D[a] : sign_ext(const9);
+                    v = irb.CreateSelect(irb.CreateICmpSGT(op1, op2), op1, op2);
+                    break;
+
+                case 0x1B: //D[c] = (D[a] > zero_ext(const9)) ? D[a] : zero_ext(const9); // unsigned
+                    v = irb.CreateSelect(irb.CreateICmpUGT(op1, op2), op1, op2);
                     break;
 
                 case 0x20: //D[c] = {D[c][31:1], D[c][0] AND (D[a] == sign_ext(const9))};
@@ -548,6 +569,22 @@ void Capstone2LlvmIrTranslatorTricore::translateDiv(cs_insn* i, cs_tricore* t, l
                     storeOp(t->operands[0], op1, irb, eOpConv::SEXT_TRUNC);
                     break;
 
+                case 0x3A:
+                {
+                    //quotient_sign = !(D[a][31] == D[b][31];
+                    //E[c][63:16] = sign_ext(D[a]);
+                    //E[c][15:0] = quotient_sign ? 16’b1111111111111111 : 16’b0;
+
+                    auto* msbDa = irb.CreateAnd(irb.CreateLShr(op1, 30), 1);
+                    auto* msbDb = irb.CreateAnd(irb.CreateLShr(op2, 30), 1);
+                    auto* quotient_sign = irb.CreateICmpNE(msbDa, msbDb);
+
+                    op1 = irb.CreateSExt(op1, op0->getType());
+                    op1 = irb.CreateShl(op1, 16);
+                    op1 = irb.CreateOr(op1, irb.CreateSelect(quotient_sign, constInt<0b1111111111111111>(op1) , constInt<0>(op1)));
+                    storeOp(t->operands[0], op1, irb);
+                    break;
+                }
                 case 0x4A: //E[c][63:24] = zero_ext(D[a]); E[c][23:0] = 0;
                     op1 = irb.CreateZExt(op1, op0->getType());
                     op1 = irb.CreateShl(op1, 24);
@@ -602,6 +639,18 @@ void Capstone2LlvmIrTranslatorTricore::translateExtr(cs_insn* i, cs_tricore* t, 
     llvm::Value* extr = nullptr;
     eOpConv ct = eOpConv::THROW;
     switch (i->id) {
+        case TRICORE_INS_DEXTR:  //D[c] = ({D[a], D[b]} << pos)[63:32];
+            op1 = irb.CreateZExt(op1, getType(64));
+            op2 = irb.CreateZExt(op2, getType(64));
+            op3 = irb.CreateZExt(op3, getType(64));
+
+            op1 = irb.CreateShl(op1, 32);
+            op1 = irb.CreateOr(op1, op2);
+            op1 = irb.CreateShl(op1, op3); //{D[a], D[b]} << pos)
+            op1 = irb.CreateAnd(irb.CreateLShr(op1, 32), 0xFFFFFFFF);
+            extr = irb.CreateTrunc(op1, getType());
+            break;
+
         case TRICORE_INS_EXTR:
             switch (t->op2) {
                 case 0x00:
