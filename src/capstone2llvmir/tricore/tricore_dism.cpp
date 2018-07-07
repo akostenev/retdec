@@ -1358,6 +1358,31 @@ void dismRCRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 
 void dismRCRW(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
     assert(i->size == 4);
+    t->format = TRICORE_OF_RCRW;
+    t->op_count = 5;
+    t->op2 = bitRange<21, 23>(b).to_ulong();
+
+    auto s1 = bitRange<8, 11>(b).to_ulong();
+    auto const4 = bitRange<12, 15>(b);
+    auto width = bitRange<16, 20>(b);
+    auto s3 = bitRange<24, 27>(b).to_ulong();
+    auto d = bitRange<28, 31>(b).to_ulong();
+
+    switch (i->id) {
+        case TRICORE_INS_INSERT:
+            //mask = (2 width -1) << D[d][4:0];
+            //D[c] = (D[a] & ~mask) | ((zero_ext(const4) << D[d][4:0]) & mask);
+            //If D[d][4:0] + width > 32, then the result is undefined.
+            t->operands[0] = getRegD(d);
+            t->operands[1] = getRegD(s1);
+            t->operands[2] = getRegD(s3);
+            t->operands[3] = zExtImm<4>(const4);
+            t->operands[4] = zExtImm<5>(width);
+            break;
+
+        default:
+            assert(false && TRICORE_OF_RCRW);
+    }
 }
 
 void dismRLC(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
@@ -1861,6 +1886,8 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_CADD, &dismRCR},
     {TRICORE_INS_MADD, &dismRCR},
     {TRICORE_INS_MSUB, &dismRCR},
+
+    {TRICORE_INS_INSERT, &dismRCRW},
 
     {TRICORE_INS_MOVD_C16, &dismRLC},
     {TRICORE_INS_MOVU, &dismRLC},

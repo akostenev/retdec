@@ -747,35 +747,66 @@ void Capstone2LlvmIrTranslatorTricore::translateExtr(cs_insn* i, cs_tricore* t, 
     storeOp(t->operands[0], extr, irb, ct);
 }
 
-void Capstone2LlvmIrTranslatorTricore::translateInsertImask(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
-    assert(i->id == TRICORE_INS_INSERT_IMASK);
+void Capstone2LlvmIrTranslatorTricore::translateInsert(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb) {
     op0 = ld<0>(t, irb);
     op1 = ld<1>(t, irb);
     op2 = ld<2>(t, irb);
+    op3 = ld<3>(t, irb);
 
-    switch (t->op2) {
-        case 0x00: //Insert
-        {
-            //mask = (2^width -1) << pos;
-            //D[c] = (D[a] & ~mask) | ((zero_ext(const4) << pos) & mask);
-            //If pos + width > 32, then the result is undefined.
-            auto* mask = llvm::ConstantInt::get(op1->getType(), ~(~0 << t->operands[3].imm.value) << t->operands[4].imm.value);
-            auto* value = irb.CreateOr(irb.CreateAnd(op1, irb.CreateNot(mask)), irb.CreateAnd(irb.CreateShl(op2, t->operands[4].imm.value), mask));
-            storeOp(t->operands[0], value, irb);
+    switch (i->id) {
+        case TRICORE_INS_INSERT_IMASK:
+            switch (t->op2) {
+                case 0x00: //Insert
+                {
+                    //mask = (2^width -1) << pos;
+                    //D[c] = (D[a] & ~mask) | ((zero_ext(const4) << pos) & mask);
+                    //If pos + width > 32, then the result is undefined.
+                    auto* mask = llvm::ConstantInt::get(op1->getType(), ~(~0 << t->operands[3].imm.value) << t->operands[4].imm.value);
+                    auto* value = irb.CreateOr(irb.CreateAnd(op1, irb.CreateNot(mask)), irb.CreateAnd(irb.CreateShl(op2, t->operands[4].imm.value), mask));
+                    storeOp(t->operands[0], value, irb);
+                    break;
+                }
+                case 0x01: //Imask
+                {
+                    //E[c][63:32] = ((2^width -1) << pos);
+                    //E[c][31:0] = (zero_ext(const4) << pos);
+                    //If pos + width > 32 the result is undefined.
+                    auto* mask = llvm::ConstantInt::get(op0->getType(), ~(~0 << t->operands[2].imm.value) << t->operands[3].imm.value);
+                    auto* value = irb.CreateZExt(irb.CreateShl(op1, t->operands[3].imm.value), op0->getType());
+                    storeOp(t->operands[0], irb.CreateOr(irb.CreateShl(mask, 32), value), irb);
+                    break;
+                }
+                default:
+                    assert(false && "Unknown op2");
+            }
             break;
-        }
-        case 0x01: //Imask
-        {
-            //E[c][63:32] = ((2^width -1) << pos);
-            //E[c][31:0] = (zero_ext(const4) << pos);
-            //If pos + width > 32 the result is undefined.
-            auto* mask = llvm::ConstantInt::get(op0->getType(), ~(~0 << t->operands[2].imm.value) << t->operands[3].imm.value);
-            auto* value = irb.CreateZExt(irb.CreateShl(op1, t->operands[3].imm.value), op0->getType());
-            storeOp(t->operands[0], irb.CreateOr(irb.CreateShl(mask, 32), value), irb);
+
+        case TRICORE_INS_INSERT:
+            switch (t->op2) {
+                case 0x00:
+                {
+                    //mask = (2^width -1) << D[d][4:0];
+                    //D[c] = (D[a] & ~mask) | ((zero_ext(const4) << D[d][4:0]) & mask);
+                    //If D[d][4:0] + width > 32, then the result is undefined.
+                    auto* first5BitsOfDd = irb.CreateAnd(op2, 0b11111);
+                    auto* mask = irb.CreateShl(llvm::ConstantInt::get(op2->getType(), ~(~0 << t->operands[4].imm.value)), first5BitsOfDd);
+                    storeOp(t->operands[0],
+                        irb.CreateOr(
+                            irb.CreateAnd(op1, irb.CreateNot(mask)),
+                            irb.CreateAnd(
+                                irb.CreateShl(op3, first5BitsOfDd),
+                                mask
+                            )
+                    ), irb);
+                    break;
+                }
+                default:
+                    assert(false && "Unknown op2");
+            }
             break;
-        }
+
         default:
-            assert(false && "Unknown op2");
+            assert(false);
     }
 }
 

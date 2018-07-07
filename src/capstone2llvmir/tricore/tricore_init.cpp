@@ -334,7 +334,8 @@ std::map<
         {TRICORE_INS_DEXTR, &Capstone2LlvmIrTranslatorTricore::translateExtr},
         {TRICORE_INS_EXTR, &Capstone2LlvmIrTranslatorTricore::translateExtr},
         {TRICORE_INS_EXTR_INSR, &Capstone2LlvmIrTranslatorTricore::translateExtr},
-        {TRICORE_INS_INSERT_IMASK, &Capstone2LlvmIrTranslatorTricore::translateInsertImask},
+        {TRICORE_INS_INSERT_IMASK, &Capstone2LlvmIrTranslatorTricore::translateInsert},
+        {TRICORE_INS_INSERT, &Capstone2LlvmIrTranslatorTricore::translateInsert},
 
         {TRICORE_INS_ISYNC, &Capstone2LlvmIrTranslatorTricore::translateIgnore},
 

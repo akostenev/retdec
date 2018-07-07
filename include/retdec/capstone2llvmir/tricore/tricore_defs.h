@@ -446,6 +446,7 @@ typedef enum tricore_insn {
 
     TRICORE_INS_INST = 0x67,
     TRICORE_INS_INSERT_IMASK = 0xB7,
+    TRICORE_INS_INSERT = 0xD7,
 
     TRICORE_INS_J32 = 0x1D,
     TRICORE_INS_JNEQ32 = 0x5F,

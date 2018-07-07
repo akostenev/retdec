@@ -118,7 +118,7 @@ protected:
     void translateDiv(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateExtr(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
-    void translateInsertImask(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+    void translateInsert(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
 
     void translateJ(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateJl(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
