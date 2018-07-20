@@ -8,7 +8,6 @@
 #define RETDEC_BIN2LLVMIR_PROVIDERS_ABI_H
 
 #include <llvm/IR/Module.h>
-
 #include "retdec/config/architecture.h"
 #include "retdec/config/calling_convention.h"
 #include "retdec/config/tool_info.h"

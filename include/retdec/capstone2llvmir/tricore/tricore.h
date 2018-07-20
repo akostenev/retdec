@@ -147,21 +147,5 @@ protected:
 } // namespace capstone2llvmir
 } // namespace retdec
 
-/**
- * @src https://stackoverflow.com/questions/17857596/how-to-convert-a-range-subset-of-bits-in-a-c-bitset-to-a-number
- */
-// drop bits outside the range [R, L) == [R, L]
-template<std::size_t R, std::size_t L, std::size_t N>
-std::bitset<N> bitRange(std::bitset<N> b) {
-    if (R > L - 1 || L - 1 >= N) {
-        assert(false);
-    }
-
-    b <<= (N - L - 1);
-    b >>= (N - L + R - 1); // shift to lsb
-
-    return b;
-};
-
 #endif
 

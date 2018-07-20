@@ -2068,8 +2068,11 @@ std::size_t ElfFormat::getBytesPerWord() const
 			return 4;
 		case EM_PPC64:
 			return 8;
+
+                // Architecture::TRICORE
 		case EM_TRICORE:
 			return 4;
+
 		case EM_NONE:
 			return isWiiPowerPc() ? 4 : 0;
 

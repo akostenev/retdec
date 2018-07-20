@@ -393,6 +393,7 @@ typedef enum tricore_insn {
 
     TRICORE_INS_ADD16 = 0x12,
     TRICORE_INS_ADD16_SSOV = 0x22,
+    TRICORE_INS_ADD16_AA = 0x30,
     TRICORE_INS_ADD16_D15_DD = 0x1A,
     TRICORE_INS_ADD16_D15 = 0x9A,
     TRICORE_INS_ADD16_D15_c = 0x92,
@@ -426,6 +427,8 @@ typedef enum tricore_insn {
     TRICORE_INS_CMOVN16 = 0xEA,
 
     TRICORE_INS_CMOVD = 0x2A,
+    TRICORE_INS_CMOVD_D15 = 0x6A,
+    TRICORE_INS_CMOVD_SRC = 0xAA,
 
     TRICORE_INS_CMP = 0x8B,
 
@@ -489,6 +492,7 @@ typedef enum tricore_insn {
 
     TRICORE_INS_LD = 0x85,
     TRICORE_INS_LDA = 0xC8,
+    TRICORE_INS_LDA16_A15 = 0xD8,
     TRICORE_INS_LDB_PINC = 0x04,
     TRICORE_INS_LDB = 0x05,
     TRICORE_INS_LDB_D_A = 0x14,
@@ -534,6 +538,8 @@ typedef enum tricore_insn {
 
     TRICORE_INS_NOT16 = 0x46,
 
+    TRICORE_INS_RSUBD = 0x32,
+
     TRICORE_INS_SELN = 0x2B,
 
     TRICORE_INS_SHAD = 0x86,
@@ -545,6 +551,7 @@ typedef enum tricore_insn {
     TRICORE_INS_ST16_D15_A10 = 0x78,
     TRICORE_INS_ST_PINC = 0x64,
     TRICORE_INS_STA = 0xF4,
+    TRICORE_INS_STA_16 = 0xEC,
     TRICORE_INS_ST_A10_A15 = 0xF8,
     TRICORE_INS_STB_PINC = 0x24,
     TRICORE_INS_STB = 0x34,
@@ -568,6 +575,7 @@ typedef enum tricore_insn {
     TRICORE_INS_SUBD15 = 0x5A,
     TRICORE_INS_SUBD1516 = 0x52,
     TRICORE_INS_MSUB = 0x33,
+    TRICORE_INS_MSUB_RRR2 = 0x23,
 
     TRICORE_INS_MFCR = 0x4D,
     TRICORE_INS_MTCR = 0xCD,

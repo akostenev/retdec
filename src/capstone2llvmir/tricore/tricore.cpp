@@ -215,17 +215,17 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
                         storeRegister(op.mem.base, addr, irb); //pinc A[a] += disp)
 
                     } else if (op.mem.op == TRICORE_MEM_OP_LEA) { // mem(A[a], disp): load EA = A[a] + disp
-                        switch (op.mem.base) {
-                            case TRICORE_REG_A_0:
-                            case TRICORE_REG_A_1:
-                            case TRICORE_REG_A_2:
-                            case TRICORE_REG_A_9:
-                                return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
-
-                            default:
-                                break;
-
-                        }
+//                         switch (op.mem.base) {
+//                             case TRICORE_REG_A_0:
+//                             case TRICORE_REG_A_1:
+//                             case TRICORE_REG_A_2:
+//                             case TRICORE_REG_A_9:
+//                                 return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
+//
+//                             default:
+//                                 break;
+//
+//                         }
 
                         addr = irb.CreateAdd(baseR, disp);
                         return addr;
@@ -237,17 +237,17 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
             }
 
             if (baseR) {
-                switch (op.mem.base) {
-                    case TRICORE_REG_A_0:
-                    case TRICORE_REG_A_1:
-                    case TRICORE_REG_A_2:
-                    case TRICORE_REG_A_9:
-                        return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
-
-                    default:
-                        break;
-
-                }
+//                 switch (op.mem.base) {
+//                     case TRICORE_REG_A_0:
+//                     case TRICORE_REG_A_1:
+//                     case TRICORE_REG_A_2:
+//                     case TRICORE_REG_A_9:
+//                         return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
+//
+//                     default:
+//                         break;
+//
+//                 }
             }
 
             auto* pt = llvm::PointerType::get(getType(op.mem.size), 0);
@@ -325,17 +325,17 @@ llvm::Instruction* Capstone2LlvmIrTranslatorTricore::storeOp(cs_tricore_op& op, 
             }
 
             if (baseR) {
-                switch (op.mem.base) {
-                    case TRICORE_REG_A_0:
-                    case TRICORE_REG_A_1:
-                    case TRICORE_REG_A_2:
-                    case TRICORE_REG_A_9:
-                        return irb.CreateStore(v, getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
-
-                    default:
-                        break;
-
-                }
+//                 switch (op.mem.base) {
+//                     case TRICORE_REG_A_0:
+//                     case TRICORE_REG_A_1:
+//                     case TRICORE_REG_A_2:
+//                     case TRICORE_REG_A_9:
+//                         return irb.CreateStore(v, getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
+//
+//                     default:
+//                         break;
+//
+//                 }
             }
 
             auto* pt = llvm::PointerType::get(v->getType(), 0);
@@ -438,17 +438,17 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
         }
     }
 
-    switch (r) {
-        case TRICORE_REG_A_0:
-        case TRICORE_REG_A_1:
-        case TRICORE_REG_A_2:
-        case TRICORE_REG_A_9:
-        {
-            return irb.CreateStore(val, getMemToGlobalValue(tricore_reg(r), 0, 32));
-        }
-        default:
-            break;
-    }
+//     switch (r) {
+//         case TRICORE_REG_A_0:
+//         case TRICORE_REG_A_1:
+//         case TRICORE_REG_A_2:
+//         case TRICORE_REG_A_9:
+//         {
+//             return irb.CreateStore(val, getMemToGlobalValue(tricore_reg(r), 0, 32));
+//         }
+//         default:
+//             break;
+//     }
 
 
     if (extended) { //update low and high registers

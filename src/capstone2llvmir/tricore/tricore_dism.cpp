@@ -1,5 +1,21 @@
 #include "retdec/capstone2llvmir/tricore/tricore.h"
 
+/**
+ * @src https://stackoverflow.com/questions/17857596/how-to-convert-a-range-subset-of-bits-in-a-c-bitset-to-a-number
+ */
+// drop bits outside the range [R, L) == [R, L]
+template<std::size_t R, std::size_t L, std::size_t N>
+std::bitset<N> bitRange(std::bitset<N> b) {
+    if (R > L - 1 || L - 1 >= N) {
+        assert(false);
+    }
+
+    b <<= (N - L - 1);
+    b >>= (N - L + R - 1); // shift to lsb
+
+    return b;
+};
+
 tricore_reg getRegD(unsigned int n) {
     return tricore_reg(TRICORE_REG_D_0 + n*4);
 }
@@ -185,9 +201,10 @@ void dismSBR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             t->operands[1] = getRegD(s2);
             break;
 
-        case TRICORE_INS_JZA_16: // if (A[b] == 0) then PC = PC + zero_ext(disp4) * 2;
-            t->operands[0] = getRegA(s2);
-            t->operands[1] = zExtImm<4>(disp4, 2);
+        case TRICORE_INS_JNZA_16: //if (A[b] != 0) then PC = PC + zero_ext(disp4) * 2;
+        case TRICORE_INS_JZA_16: //if (A[b] == 0) then PC = PC + zero_ext(disp4) * 2;
+            t->operands[0] = zExtImm<4>(disp4, 2);
+            t->operands[1] = getRegA(s2);
             break;
 
         case TRICORE_INS_JEQ16: //if (D[15] == D[b]) then PC = PC + zero_ext(disp4) * 2;
@@ -263,6 +280,11 @@ void dismSC(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 
         case TRICORE_INS_LD16_D15_A10: //D[15] = M(A[10] + zero_ext(4 * const8), word);
             t->operands[0] = TRICORE_REG_D_15;
+            t->operands[1] = mem(TRICORE_REG_A_10, zExtImm<8>(const8, 4));
+            break;
+
+        case TRICORE_INS_LDA16_A15: //A[15] = M(A[10] + zero_ext(4 * const8), word);
+            t->operands[0] = TRICORE_REG_A_15;
             t->operands[1] = mem(TRICORE_REG_A_10, zExtImm<8>(const8, 4));
             break;
 
@@ -370,6 +392,7 @@ void dismSR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             break;
 
         case TRICORE_INS_NOT16:
+        case TRICORE_INS_RSUBD: //result = 0 - D[a]; D[a] = result[31:0];
             t->operands[0] = getRegD(s1d);
             break;
 
@@ -422,6 +445,7 @@ void dismSRC(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 
         case TRICORE_INS_ADD16_D15_c: //result = D[15] + sign_ext(const4); D[a] = result[31:0];
         case TRICORE_INS_CMOVN16: //D[a] = ((D[15] == 0) ? sign_ext(const4) : D[a]);
+        case TRICORE_INS_CMOVD_SRC: //D[a] = ((D[15] != 0) ? sign_ext(const4) : D[a]);
             t->op_count = 3;
             t->operands[0] = getRegD(s1d);
             t->operands[1] = TRICORE_REG_D_15;
@@ -462,8 +486,8 @@ void dismSRO(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             t->operands[1] = memA(s2, zExtImm<4>(off4, 4));
             break;
 
-        case 0xEC: //M(A[b] + zero_ext(4 * off4), word) = A[15];
-            t->operands[0] = memA(s2, zExtImm<4>(off4));
+        case TRICORE_INS_STA_16: //M(A[b] + zero_ext(4 * off4), word) = A[15];
+            t->operands[0] = memA(s2, zExtImm<4>(off4, 4));
             t->operands[1] = TRICORE_REG_A_15;
             break;
 
@@ -511,6 +535,7 @@ void dismSRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             t->operands[2] = getRegD(s2);
             break;
 
+        case TRICORE_INS_ADD16_AA: //A[a] = A[a] + A[b];
         case TRICORE_INS_MOVAA: //A[a] = A[b];
             t->operands[0] = getRegA(s1d);
             t->operands[1] = getRegA(s2);
@@ -546,6 +571,7 @@ void dismSRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             break;
 
         case TRICORE_INS_CMOVD: //D[a] = ((D[15] != 0) ? D[b] : D[a]);
+        case TRICORE_INS_CMOVD_D15: //D[a] = ((D[15] == 0) ? D[b] : D[a]);
         case TRICORE_INS_SUBD1516: //result = D[15] - D[b]; D[a] = result[31:0];
             t->op_count = 3;
             t->operands[0] = getRegD(s1d);
@@ -866,18 +892,38 @@ void dismBO(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
                     t->operands[1] = getRegD(s1d);
                     break;
 
+                case 0x10: //EA = A[b] + sign_ext(off10); M(EA, byte) = D[a][7:0]; A[b] = EA;
+                    t->operands[0] = memA(s2, sExtImm<10>(off10), BYTE, TRICORE_EXT_ZEXT_TRUNC, TRICORE_MEM_OP_PREINC);
+                    t->operands[1] = getRegD(s1d);
+                    break;
+
                 case 0x12: //EA = A[b] + sign_ext(off10); M(EA, halfword) = D[a][15:0]; A[b] = EA;
                     t->operands[0] = memA(s2, sExtImm<10>(off10), HWORD, TRICORE_EXT_TRUNC_L, TRICORE_MEM_OP_PREINC);
                     t->operands[1] = getRegD(s1d);
                     break;
 
-                case 0x18: //EA = A[b] + sign_ext(off10); M(EA, halfword) = D[a][31:16]; A[b] = EA;
-                    t->operands[0] = memA(s2, sExtImm<10>(off10), HWORD, TRICORE_EXT_TRUNC_H, TRICORE_MEM_OP_PREINC);
+                case 0x14: //EA = A[b] + sign_ext(off10); M(EA, word) = D[a]; A[b] = EA;
+                    t->operands[0] = memA(s2, sExtImm<10>(off10), WORD, TRICORE_EXT_THROW, TRICORE_MEM_OP_PREINC);
                     t->operands[1] = getRegD(s1d);
                     break;
 
-                case 0x14: //EA = A[b] + sign_ext(off10); M(EA, word) = D[a]; A[b] = EA;
+                case 0x15: //EA = A[b] + sign_ext(off10); M(EA, doubleword) = E[a]; A[b] = EA;
+                    t->operands[0] = memA(s2, sExtImm<10>(off10), DWORD, TRICORE_EXT_THROW, TRICORE_MEM_OP_PREINC);
+                    t->operands[1] = getRegE(s1d);
+                    break;
+
+                case 0x16: //EA = A[b] + sign_ext(off10); M(EA, word) = A[a]; A[b] = EA;
                     t->operands[0] = memA(s2, sExtImm<10>(off10), WORD, TRICORE_EXT_THROW, TRICORE_MEM_OP_PREINC);
+                    t->operands[1] = getRegA(s1d);
+                    break;
+
+                case 0x17: //EA = A[b] + sign_ext(off10); M(EA, doubleword) = P[a]; A[b] = EA;
+                    t->operands[0] = memA(s2, sExtImm<10>(off10), DWORD, TRICORE_EXT_THROW, TRICORE_MEM_OP_PREINC);
+                    t->operands[1] = getRegP(s1d);
+                    break;
+
+                case 0x18: //EA = A[b] + sign_ext(off10); M(EA, halfword) = D[a][31:16]; A[b] = EA;
+                    t->operands[0] = memA(s2, sExtImm<10>(off10), HWORD, TRICORE_EXT_TRUNC_H, TRICORE_MEM_OP_PREINC);
                     t->operands[1] = getRegD(s1d);
                     break;
 
@@ -1311,11 +1357,31 @@ void dismRCR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 
     switch (i->id) {
         case TRICORE_INS_CADD: //condition = D[d] != 0; result = ((condition) ? D[a] + sign_ext(const9) : D[a]); D[c] = result[31:0];
-        case TRICORE_INS_MADD: //result = D[d] + (D[a] * sign_ext(const9)); D[c] = result[31:0];
             t->operands[0] = getRegD(d);
             t->operands[1] = getRegD(s1);
             t->operands[2] = sExtImm<9>(const9);
             t->operands[3] = getRegD(s2);
+            break;
+
+        case TRICORE_INS_MADD:
+            switch (t->op2) {
+                case 0x01: //result = D[d] + (D[a] * sign_ext(const9)); D[c] = result[31:0];
+                    t->operands[0] = getRegD(d);
+                    t->operands[1] = getRegD(s1);
+                    t->operands[2] = sExtImm<9>(const9);
+                    t->operands[3] = getRegD(s2);
+                    break;
+
+                case 0x02: //result = E[d] + (D[a] * zero_ext(const9)); // unsigned operators E[c] = result[63:0];
+                    t->operands[0] = getRegE(d);
+                    t->operands[1] = getRegD(s1);
+                    t->operands[2] = sExtImm<9>(const9);
+                    t->operands[3] = getRegE(s2);
+                    break;
+
+                default:
+                    assert(false);
+            }
             break;
 
         case TRICORE_INS_MSUB:
@@ -1510,6 +1576,7 @@ void dismRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
 
         case TRICORE_INS_ADDSCA:
             switch (t->op2) {
+                case 0x01: //A[c] = A[a] + A[b];
                 case 0x02: //A[c] = A[a] - A[b];
                     t->operands[0] = getRegA(d);
                     t->operands[1] = getRegA(s1);
@@ -1681,8 +1748,33 @@ void dismRRR2(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
                     t->operands[3] = getRegD(s3);
                     break;
 
+                case 0x68: //result = E[d] + (D[a] * D[b]); // unsigned operators E[c] = result[63:0];
                 case 0x6A:
                     t->operands[0] = getRegE(d);
+                    t->operands[3] = getRegE(s3);
+                    break;
+
+                default:
+                    assert(false);
+            }
+            break;
+
+        case TRICORE_INS_MSUB_RRR2:
+            switch (t->op2) {
+                case 0x0A: //result = D[d] - (D[a] * D[b]); D[c] = result[31:0];
+                case 0x88: //result = D[d] - (D[a] * D[b]); // unsigned operators D[c]= suov(result, 32);
+                case 0x8A: //result = D[d] - (D[a] * D[b]); D[c] = ssov(result, 32);
+                    t->operands[0] = getRegD(d);
+                    t->operands[1] = getRegD(s1);
+                    t->operands[2] = getRegD(s2);
+                    t->operands[3] = getRegD(s3);
+                    break;
+
+                case 0x68: //result = E[d] - (D[a] * D[b]); // unsigned operators E[c] = result[63:0];
+                case 0x6A: //result = E[d] - (D[a] * D[b]); E[c] = result[63:0];
+                    t->operands[0] = getRegE(d);
+                    t->operands[1] = getRegD(s1);
+                    t->operands[2] = getRegD(s2);
                     t->operands[3] = getRegE(s3);
                     break;
 
@@ -1744,6 +1836,7 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_JGEZD, &dismSBR},
     {TRICORE_INS_JGTZ, &dismSBR},
     {TRICORE_INS_JNZ16, &dismSBR},
+    {TRICORE_INS_JNZA_16, &dismSBR},
     {TRICORE_INS_JEQ16, &dismSBR},
     {TRICORE_INS_JNE_16_z_r, &dismSBR},
     {TRICORE_INS_JLTZ16, &dismSBR},
@@ -1759,6 +1852,7 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_ST_A10_A15, &dismSC},
     {TRICORE_INS_OR16_D15, &dismSC},
     {TRICORE_INS_LD16_D15_A10, &dismSC},
+    {TRICORE_INS_LDA16_A15, &dismSC},
 
     {TRICORE_INS_LDA_PINC, &dismSLR},
     {TRICORE_INS_LDD, &dismSLR},
@@ -1777,6 +1871,7 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {0x00, &dismSR}, //TRICORE_INS_NOP, TRICORE_INS_RET
     {TRICORE_INS_JIA, &dismSR},
     {TRICORE_INS_NOT16, &dismSR},
+    {TRICORE_INS_RSUBD, &dismSR},
 
     {TRICORE_INS_ADDA, &dismSRC},
     {TRICORE_INS_CADD16, &dismSRC},
@@ -1789,9 +1884,11 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_SHD, &dismSRC},
     {TRICORE_INS_EQ16, &dismSRC},
     {TRICORE_INS_CMOVN16, &dismSRC},
+    {TRICORE_INS_CMOVD_SRC, &dismSRC},
 
     {TRICORE_INS_ADDSCA16, &dismSRRS},
 
+    {TRICORE_INS_ADD16_AA, &dismSRR},
     {TRICORE_INS_ADD16_D15_DD, &dismSRR},
     {TRICORE_INS_ADD16, &dismSRR},
     {TRICORE_INS_ADD16_SSOV, &dismSRR},
@@ -1805,6 +1902,7 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_ADDDD, &dismSRR},
     {TRICORE_INS_SUBD15, &dismSRR},
     {TRICORE_INS_CMOVD, &dismSRR},
+    {TRICORE_INS_CMOVD_D15, &dismSRR},
     {TRICORE_INS_MULD2, &dismSRR},
     {TRICORE_INS_SUBD1516, &dismSRR},
     {TRICORE_INS_EQ16_D15, &dismSRR},
@@ -1815,6 +1913,7 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_LD_HD, &dismSRO},
     {TRICORE_INS_STHW16_D15, &dismSRO},
     {TRICORE_INS_LDD15, &dismSRO},
+    {TRICORE_INS_STA_16, &dismSRO},
     {TRICORE_INS_S16_D15, &dismSRO},
     {TRICORE_INS_STB16, &dismSRO},
 
@@ -1914,6 +2013,7 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
     {TRICORE_INS_SELN, &dismRRR},
 
     {TRICORE_INS_MADD_RRR2, &dismRRR2},
+    {TRICORE_INS_MSUB_RRR2, &dismRRR2},
 
     {TRICORE_INS_EXTR_INSR, &dismRRRR},
 
