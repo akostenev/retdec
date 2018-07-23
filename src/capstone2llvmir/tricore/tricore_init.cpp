@@ -161,7 +161,7 @@ void Capstone2LlvmIrTranslatorTricore::initializeRegTypeMap()
         {TRICORE_REG_A_12, p32},
         {TRICORE_REG_A_13, p32},
         {TRICORE_REG_A_14, i32},
-        {TRICORE_REG_A_15, i32},
+        {TRICORE_REG_A_15, p32},
 
         {TRICORE_REG_E_0, i64},
         {TRICORE_REG_E_2, i64},
