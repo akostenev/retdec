@@ -934,6 +934,19 @@ llvm::GlobalVariable* Capstone2LlvmIrTranslator::createRegister(
 		{
 			initializer = llvm::ConstantFP::get(rt, 0);
 		}
+		else if (rt->isPointerTy()) {
+
+                        llvm::PointerType* pt = nullptr;
+                        if (rt == llvm::PointerType::getInt32PtrTy(_module->getContext())) {
+                            pt = llvm::PointerType::get(llvm::Type::getInt32Ty(_module->getContext()), 0);
+                        } else if (rt == llvm::PointerType::getInt64PtrTy(_module->getContext())) {
+                            pt = llvm::PointerType::get(llvm::Type::getInt64Ty(_module->getContext()), 0);
+                        } else {
+                            throw Capstone2LlvmIrError("Unhandled register type.");
+                        }
+
+                        initializer = llvm::ConstantPointerNull::get(pt);
+                }
 		else
 		{
 			throw Capstone2LlvmIrError("Unhandled register type.");

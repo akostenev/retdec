@@ -1409,7 +1409,11 @@ void Capstone2LlvmIrTranslatorTricore::translateSub(cs_insn* i, cs_tricore* t, l
     switch (i->id) {
         case TRICORE_INS_SUBA10: //A[10] = A[10] - zero_ext(const8);
         case TRICORE_INS_SUBD: //result = D[a] - D[b]; D[a] = result[31:0];
-            v = irb.CreateSub(op0, op1);
+            if (op0->getType()->isPointerTy()) {
+                v = irb.CreateSub(irb.CreateLoad(op1->getType(), op0), op1);
+            } else {
+                v = irb.CreateSub(op0, op1);
+            }
             break;
 
         case TRICORE_INS_SUBD1516: //result = D[15] - D[b]; D[a] = result[31:0];
@@ -1485,10 +1489,11 @@ void Capstone2LlvmIrTranslatorTricore::translateCall(cs_insn* i, cs_tricore* t, 
     switch (i->id) {
         case TRICORE_INS_CALL16:
         case TRICORE_INS_CALL32:
+        {
             storeRegister(TRICORE_REG_RA, getNextInsnAddress(i), irb); // A[11] = PC + 4;
             generateCallFunctionCall(i, irb, op0); //PC = PC + sign_ext(2 * disp24);
             break;
-
+        }
         case TRICORE_INS_CALLI:
             switch (t->op2) {
                 case 0x00:

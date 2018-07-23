@@ -7,7 +7,6 @@
 #define BYTE 8
 
 #include "capstone/capstone.h"
-#include <bitset>
 
 /**
  * @src TriCore 1.6 User manuel 1
@@ -507,7 +506,7 @@ typedef enum tricore_insn {
     TRICORE_INS_LDHW16_REL = 0x88,
     TRICORE_INS_LDW16 = 0x48,
     TRICORE_INS_LD_HD = 0x8C,
-    TRICORE_INS_LD_HD_PINC = 0x84, //Load half-word, post incr //TODO find better name
+    TRICORE_INS_LD_HD_PINC = 0x84,
     TRICORE_INS_LD_BUD = 0x39,
     TRICORE_INS_LD_BUD15 = 0x0C,
     TRICORE_INS_LDW = 0x19,

@@ -394,6 +394,10 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadRegister(uint32_t r, llvm::IR
         assert(false && "loadRegister() unhandled reg.");
     }
 
+    if (llvmReg->getValueType()->isPointerTy()) {
+        return irb.CreateLoad(irb.CreateLoad(llvmReg));
+    }
+
     return irb.CreateLoad(llvmReg);
 }
 
@@ -420,21 +424,28 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
     auto* regT = getRegisterType(r);
     assert(llvmReg != nullptr && "storeRegister() unhandled reg.");
     if (val->getType() != llvmReg->getValueType()) {
-        switch (ct) {
-            case eOpConv::SEXT_TRUNC:
-                val = irb.CreateSExtOrTrunc(val, regT);
-                break;
 
-            case eOpConv::ZEXT_TRUNC:
-                val = irb.CreateZExtOrTrunc(val, regT);
-                break;
+        if (llvmReg->getValueType()->isPointerTy()) {
+            auto* pt = llvm::PointerType::get(getType(extended ? 64 : 32), 0);
+            val = irb.CreateIntToPtr(val, pt);
 
-//             case eOpConv::FP_CAST:
-//                 val = irb.CreateFPCast(val, regT);
-//                 break;
+        } else {
+            switch (ct) {
+                case eOpConv::SEXT_TRUNC:
+                    val = irb.CreateSExtOrTrunc(val, regT);
+                    break;
 
-            default:
-                assert(false && "Unhandled eOpConv type.");
+                case eOpConv::ZEXT_TRUNC:
+                    val = irb.CreateZExtOrTrunc(val, regT);
+                    break;
+
+    //             case eOpConv::FP_CAST:
+    //                 val = irb.CreateFPCast(val, regT);
+    //                 break;
+
+                default:
+                    assert(false && "Unhandled eOpConv type.");
+            }
         }
     }
 

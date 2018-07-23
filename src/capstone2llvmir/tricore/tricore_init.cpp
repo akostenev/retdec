@@ -111,6 +111,9 @@ void Capstone2LlvmIrTranslatorTricore::initializeRegTypeMap()
     auto* i32 = llvm::IntegerType::getInt32Ty(_module->getContext());
     auto* i64 = llvm::IntegerType::getInt64Ty(_module->getContext());
 
+    auto* p32 = llvm::PointerType::getInt32PtrTy(_module->getContext());
+    auto* p64 = llvm::PointerType::getInt64PtrTy(_module->getContext());
+
     std::map<uint32_t, llvm::Type*> r2t =
     {
         {TRICORE_REG_PSW, i32},
@@ -143,20 +146,20 @@ void Capstone2LlvmIrTranslatorTricore::initializeRegTypeMap()
         {TRICORE_REG_D_14, i32},
         {TRICORE_REG_D_15, i32},
 
-        {TRICORE_REG_A_0, i32},
-        {TRICORE_REG_A_1, i32},
-        {TRICORE_REG_A_2, i32},
-        {TRICORE_REG_A_3, i32},
-        {TRICORE_REG_A_4, i32},
-        {TRICORE_REG_A_5, i32},
-        {TRICORE_REG_A_6, i32},
-        {TRICORE_REG_A_7, i32},
-        {TRICORE_REG_A_8, i32},
-        {TRICORE_REG_A_9, i32},
+        {TRICORE_REG_A_0, p32},
+        {TRICORE_REG_A_1, p32},
+        {TRICORE_REG_A_2, p32},
+        {TRICORE_REG_A_3, p32},
+        {TRICORE_REG_A_4, p32},
+        {TRICORE_REG_A_5, p32},
+        {TRICORE_REG_A_6, p32},
+        {TRICORE_REG_A_7, p32},
+        {TRICORE_REG_A_8, p32},
+        {TRICORE_REG_A_9, p32},
         {TRICORE_REG_A_10, i32},
         {TRICORE_REG_A_11, i32},
-        {TRICORE_REG_A_12, i32},
-        {TRICORE_REG_A_13, i32},
+        {TRICORE_REG_A_12, p32},
+        {TRICORE_REG_A_13, p32},
         {TRICORE_REG_A_14, i32},
         {TRICORE_REG_A_15, i32},
 
