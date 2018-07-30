@@ -102,6 +102,7 @@ private:
     std::map<std::pair<tricore_reg, uint64_t>, llvm::GlobalValue*> _memToGlobalValue;
     std::map<tricore_reg, llvm::ConstantInt*> _initGlobalAddress;
     llvm::Value* getMemToGlobalValue(tricore_reg r, uint64_t disp, uint8_t size);
+    bool replaceWithGlobalVal(tricore_reg r) const;
 
 protected:
     static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>&)> _i2fm;

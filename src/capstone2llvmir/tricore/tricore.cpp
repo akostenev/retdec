@@ -215,17 +215,9 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
                         storeRegister(op.mem.base, addr, irb); //pinc A[a] += disp)
 
                     } else if (op.mem.op == TRICORE_MEM_OP_LEA) { // mem(A[a], disp): load EA = A[a] + disp
-//                         switch (op.mem.base) {
-//                             case TRICORE_REG_A_0:
-//                             case TRICORE_REG_A_1:
-//                             case TRICORE_REG_A_2:
-//                             case TRICORE_REG_A_9:
-//                                 return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
-//
-//                             default:
-//                                 break;
-//
-//                         }
+                        if (replaceWithGlobalVal(op.mem.base)) {
+                            return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
+                        }
 
                         addr = irb.CreateAdd(baseR, disp);
                         return addr;
@@ -236,18 +228,8 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
                 }
             }
 
-            if (baseR) {
-//                 switch (op.mem.base) {
-//                     case TRICORE_REG_A_0:
-//                     case TRICORE_REG_A_1:
-//                     case TRICORE_REG_A_2:
-//                     case TRICORE_REG_A_9:
-//                         return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
-//
-//                     default:
-//                         break;
-//
-//                 }
+            if (baseR && replaceWithGlobalVal(op.mem.base)) {
+                return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
             }
 
             auto* pt = llvm::PointerType::get(getType(op.mem.size), 0);
@@ -324,18 +306,8 @@ llvm::Instruction* Capstone2LlvmIrTranslatorTricore::storeOp(cs_tricore_op& op, 
                 v = irb.CreateZExtOrTrunc(v, getType(op.mem.size));
             }
 
-            if (baseR) {
-//                 switch (op.mem.base) {
-//                     case TRICORE_REG_A_0:
-//                     case TRICORE_REG_A_1:
-//                     case TRICORE_REG_A_2:
-//                     case TRICORE_REG_A_9:
-//                         return irb.CreateStore(v, getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
-//
-//                     default:
-//                         break;
-//
-//                 }
+            if (baseR && replaceWithGlobalVal(op.mem.base)) {
+                return irb.CreateStore(v, getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
             }
 
             auto* pt = llvm::PointerType::get(v->getType(), 0);
@@ -367,27 +339,27 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadRegister(uint32_t r, llvm::IR
         r = regToExtendedReg(r);
     }
 
-//     if (r == TRICORE_REG_A_0) { //LDRAM:D0009DC0 __small_data
-//         auto* pt = llvm::PointerType::get(getType(), 0);
-//         llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x0009DC0, false);
-//         addr = irb.CreateIntToPtr(addr, pt);
-//
-//         return irb.CreateLoad(addr, "__small_data");
-//
-//     } else if (r == TRICORE_REG_A_1) { //PFLASH:8002CF9C __literal_data
-//         auto* pt = llvm::PointerType::get(getType(), 0);
-//         llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x002CF9C, false);
-//         addr = irb.CreateIntToPtr(addr, pt);
-//
-//         return irb.CreateLoad(addr, "__literal_data");
-//
-//     } else if (r == TRICORE_REG_A_9) {
-//         auto* pt = llvm::PointerType::get(getType(), 0);
-//         llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x8016D340, false);
-//         addr = irb.CreateIntToPtr(addr, pt);
-//
-//         return irb.CreateLoad(addr, "function_vector");
-//     }
+    if (r == TRICORE_REG_A_0) { //LDRAM:D0009DC0 __small_data
+        auto* pt = llvm::PointerType::get(getType(), 0);
+        llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x0009DC0, false);
+        addr = irb.CreateIntToPtr(addr, pt);
+
+        return irb.CreateLoad(addr, "__small_data");
+
+    } else if (r == TRICORE_REG_A_1) { //PFLASH:8002CF9C __literal_data
+        auto* pt = llvm::PointerType::get(getType(), 0);
+        llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x002CF9C, false);
+        addr = irb.CreateIntToPtr(addr, pt);
+
+        return irb.CreateLoad(addr, "__literal_data");
+
+    } else if (r == TRICORE_REG_A_9) {
+        auto* pt = llvm::PointerType::get(getType(), 0);
+        llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x8016D340, false);
+        addr = irb.CreateIntToPtr(addr, pt);
+
+        return irb.CreateLoad(addr, "function_vector");
+    }
 
     auto* llvmReg = getRegister(r);
     if (llvmReg == nullptr) {
@@ -423,6 +395,11 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
     auto* llvmReg = getRegister(r);
     auto* regT = getRegisterType(r);
     assert(llvmReg != nullptr && "storeRegister() unhandled reg.");
+
+    if (replaceWithGlobalVal(tricore_reg(r))) {
+        return irb.CreateStore(val, getMemToGlobalValue(tricore_reg(r), 0, 32));
+    }
+
     if (val->getType() != llvmReg->getValueType()) {
 
         if (llvmReg->getValueType()->isPointerTy()) {
@@ -448,19 +425,6 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
             }
         }
     }
-
-//     switch (r) {
-//         case TRICORE_REG_A_0:
-//         case TRICORE_REG_A_1:
-//         case TRICORE_REG_A_2:
-//         case TRICORE_REG_A_9:
-//         {
-//             return irb.CreateStore(val, getMemToGlobalValue(tricore_reg(r), 0, 32));
-//         }
-//         default:
-//             break;
-//     }
-
 
     if (extended) { //update low and high registers
         auto* lReg = getRegister(pRegs.first);
@@ -534,6 +498,20 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::getMemToGlobalValue(tricore_reg r
 
         _memToGlobalValue.insert(std::make_pair(std::make_pair(r, disp), gv));
         return gv;
+    }
+}
+
+bool Capstone2LlvmIrTranslatorTricore::replaceWithGlobalVal(tricore_reg r) const {
+    switch (r) {
+        case TRICORE_REG_A_0:
+        case TRICORE_REG_A_1:
+        case TRICORE_REG_A_2:
+        case TRICORE_REG_A_9:
+            return true;
+
+        default:
+            return false;
+
     }
 }
 
