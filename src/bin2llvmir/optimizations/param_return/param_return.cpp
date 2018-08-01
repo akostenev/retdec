@@ -1334,7 +1334,34 @@ void DataFlowEntry::applyToIrOrdinary()
 		}
 		else if (_config->getConfig().architecture.isTricore())
                 {
-                        retVal = _config->getLlvmRegister("d2");
+                        bool lastOneIsD2 = true; //retValue is either a2 or d2,
+                        for (BasicBlock& bb : fnc->getBasicBlockList()) { //so search in
+
+                            bool foundRet = false;
+                            for (Instruction& ins: bb.getInstList()) { //all instruction
+
+                                if (dyn_cast<ReturnInst>(&ins)) {//to find the return basic block
+                                    foundRet = true;
+                                    break;
+                                }
+                            }
+
+                            if (foundRet) {
+                                for (Instruction& ins : bb.getInstList()) {
+                                    if (StoreInst* si = dyn_cast<StoreInst>(&ins)) { //find last usage of a2 or d2
+                                        for (unsigned int i = 0, n = si->getNumOperands(); i < n; i++) {
+                                            if (si->getOperand(i) == _config->getLlvmRegister("d2")) {
+                                                lastOneIsD2 = true;
+                                            } else if (si->getOperand(i) == _config->getLlvmRegister("a2")) {
+                                                lastOneIsD2 = false;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        retVal = lastOneIsD2 ? _config->getLlvmRegister("d2") : _config->getLlvmRegister("a2"); //and use it
                 }
 		if (retVal)
 		{
@@ -1365,7 +1392,7 @@ void DataFlowEntry::applyToIrOrdinary()
 		static std::vector<std::string> mipsNames =
 				{"a0", "a1", "a2", "a3"};
                 static std::vector<std::string> tricoreNames =
-                                {"d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15"};
+                                {"d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14"};
 		if (_config->getConfig().tools.isPspGcc())
 		{
 			mipsNames = {"a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3"};
@@ -1518,7 +1545,7 @@ void DataFlowEntry::applyToIrVariadic()
 	std::vector<std::string> mipsNames =
 			{"a0", "a1", "a2", "a3"};
         std::vector<std::string> tricoreNames =
-                        {"d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15"};
+                        {"a4"};
 
 	if (_config->getConfig().tools.isPspGcc())
 	{
@@ -2257,7 +2284,16 @@ void DataFlowEntry::setReturnType()
 	}
         else if (_config->getConfig().architecture.isTricore()) //TODO check
         {
-                retVal = _config->getLlvmRegister("d2");
+                for (auto& re : retStores) {
+                    for (StoreInst* s : re.possibleRetStores) {
+                        if (s->getPointerOperand()->getName() == "d2") {
+                            retVal = _config->getLlvmRegister("d2");
+                        } else if (s->getPointerOperand()->getName() == "a2") {
+                            retVal = _config->getLlvmRegister("a2");
+                        }
+                    }
+                }
+//                 retVal = _config->getLlvmRegister("a2");
         }
 
 	retType = retVal ?
