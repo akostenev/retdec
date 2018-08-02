@@ -317,8 +317,8 @@ bool registerCanBeParameterAccordingToAbi(Config* _config, llvm::Value* val)
         {
                 static std::set<std::string> names =
                     {
-                        "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9",               "a12", "a13",
-                                                "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14",
+                        "a4", "a5", "a6", "a7", "a8", "a9",               "a12", "a13",
+                        "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14",
 //                         "e0",       "e2",       "e4",       "e6",       "e8",       "e10",        "e12",        "e14",
 //                         "p0",       "p2",       "p4",       "p6",       "p8",       "p10",        "p12",        "p14",
                     };
@@ -1334,34 +1334,7 @@ void DataFlowEntry::applyToIrOrdinary()
 		}
 		else if (_config->getConfig().architecture.isTricore())
                 {
-                        bool lastOneIsD2 = true; //retValue is either a2 or d2,
-                        for (BasicBlock& bb : fnc->getBasicBlockList()) { //so search in
-
-                            bool foundRet = false;
-                            for (Instruction& ins: bb.getInstList()) { //all instruction
-
-                                if (dyn_cast<ReturnInst>(&ins)) {//to find the return basic block
-                                    foundRet = true;
-                                    break;
-                                }
-                            }
-
-                            if (foundRet) {
-                                for (Instruction& ins : bb.getInstList()) {
-                                    if (StoreInst* si = dyn_cast<StoreInst>(&ins)) { //find last usage of a2 or d2
-                                        for (unsigned int i = 0, n = si->getNumOperands(); i < n; i++) {
-                                            if (si->getOperand(i) == _config->getLlvmRegister("d2")) {
-                                                lastOneIsD2 = true;
-                                            } else if (si->getOperand(i) == _config->getLlvmRegister("a2")) {
-                                                lastOneIsD2 = false;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        retVal = lastOneIsD2 ? _config->getLlvmRegister("d2") : _config->getLlvmRegister("a2"); //and use it
+                        retVal = getTricoreReturnValue();
                 }
 		if (retVal)
 		{
@@ -2284,16 +2257,7 @@ void DataFlowEntry::setReturnType()
 	}
         else if (_config->getConfig().architecture.isTricore()) //TODO check
         {
-                for (auto& re : retStores) {
-                    for (StoreInst* s : re.possibleRetStores) {
-                        if (s->getPointerOperand()->getName() == "d2") {
-                            retVal = _config->getLlvmRegister("d2");
-                        } else if (s->getPointerOperand()->getName() == "a2") {
-                            retVal = _config->getLlvmRegister("a2");
-                        }
-                    }
-                }
-//                 retVal = _config->getLlvmRegister("a2");
+                retVal = getTricoreReturnValue();
         }
 
 	retType = retVal ?
@@ -2328,6 +2292,43 @@ void DataFlowEntry::setArgumentTypes()
 				ce->possibleArgStores.size(),
 				getDefaultType(_module));
 	}
+}
+
+Value* DataFlowEntry::getTricoreReturnValue() {
+    if (Function* fnc = getFunction()) {
+        bool lastOneIsD2 = true; //retValue is either a2 or d2,
+        for (BasicBlock& bb : fnc->getBasicBlockList()) { //so search in
+
+            bool foundRet = false;
+            for (Instruction& ins: bb.getInstList()) { //all instruction
+
+                if (dyn_cast<ReturnInst>(&ins)) {//to find the return basic block
+                    foundRet = true;
+                    break;
+                }
+            }
+
+            if (foundRet) {
+                for (Instruction& ins : bb.getInstList()) {
+                    ins.dump();
+                    if (StoreInst* si = dyn_cast<StoreInst>(&ins)) { //find last usage of a2 or d2 //TODO other instructions ?
+                        for (unsigned int i = 0, n = si->getNumOperands(); i < n; i++) {
+                            si->getOperand(i)->dump();
+                            if (si->getOperand(i) == _config->getLlvmRegister("d2")) {
+                                lastOneIsD2 = true;
+                            } else if (si->getOperand(i) == _config->getLlvmRegister("a2")) {
+                                lastOneIsD2 = false;
+                            }
+                        }
+                    }
+                }
+
+                return lastOneIsD2 ? _config->getLlvmRegister("d2") : _config->getLlvmRegister("a2"); //and use it
+                //even if there are multiply ReturnBB, there should be only one used return register
+            }
+        }
+    }
+    return nullptr;
 }
 
 } // namespace bin2llvmir
