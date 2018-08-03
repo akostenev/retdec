@@ -339,28 +339,6 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadRegister(uint32_t r, llvm::IR
         r = regToExtendedReg(r);
     }
 
-//     if (r == TRICORE_REG_A_0) { //LDRAM:D0009DC0 __small_data
-//         auto* pt = llvm::PointerType::get(getType(), 0);
-//         llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x0009DC0, false);
-//         addr = irb.CreateIntToPtr(addr, pt);
-//
-//         return irb.CreateLoad(addr, "__small_data");
-//
-//     } else if (r == TRICORE_REG_A_1) { //PFLASH:8002CF9C __literal_data
-//         auto* pt = llvm::PointerType::get(getType(), 0);
-//         llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x002CF9C, false);
-//         addr = irb.CreateIntToPtr(addr, pt);
-//
-//         return irb.CreateLoad(addr, "__literal_data");
-//
-//     } else if (r == TRICORE_REG_A_9) {
-//         auto* pt = llvm::PointerType::get(getType(), 0);
-//         llvm::Value* addr = llvm::ConstantInt::get(getType(), 0x8016D340, false);
-//         addr = irb.CreateIntToPtr(addr, pt);
-//
-//         return irb.CreateLoad(addr, "function_vector");
-//     }
-
     auto* llvmReg = getRegister(r);
     if (llvmReg == nullptr) {
         assert(false && "loadRegister() unhandled reg.");

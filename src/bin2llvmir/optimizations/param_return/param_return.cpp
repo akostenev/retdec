@@ -317,10 +317,8 @@ bool registerCanBeParameterAccordingToAbi(Config* _config, llvm::Value* val)
         {
                 static std::set<std::string> names =
                     {
-                        "a4", "a5", "a6", "a7", "a8", "a9",               "a12", "a13",
-                        "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14",
-//                         "e0",       "e2",       "e4",       "e6",       "e8",       "e10",        "e12",        "e14",
-//                         "p0",       "p2",       "p4",       "p6",       "p8",       "p10",        "p12",        "p14",
+                        "a4", "a5", "a6", "a7",
+                        "d4", "d5", "d6", "d7", "e4", "e6",
                     };
                 if (names.find(val->getName()) == names.end())
                 {
@@ -1365,7 +1363,7 @@ void DataFlowEntry::applyToIrOrdinary()
 		static std::vector<std::string> mipsNames =
 				{"a0", "a1", "a2", "a3"};
                 static std::vector<std::string> tricoreNames =
-                                {"d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14"};
+                                {"d4", "d5", "d6", "d7"};
 		if (_config->getConfig().tools.isPspGcc())
 		{
 			mipsNames = {"a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3"};
@@ -1460,9 +1458,12 @@ void DataFlowEntry::applyToIrOrdinary()
 					}
 					else if (_config->getConfig().architecture.isTricore()) //TODO check
                                         {
-                                                auto* r = _config->getLlvmRegister(tricoreNames[idx]);
-                                                auto* l = new LoadInst(r, "", p.first);
-                                                p.second.push_back(l);
+                                                if (idx < tricoreNames.size()) {
+                                                        auto* r = _config->getLlvmRegister(tricoreNames[idx]);
+                                                        auto* l = new LoadInst(r, "", p.first);
+                                                        p.second.push_back(l);
+                                                }
+
                                         }
 				}
 				++idx;
@@ -2310,10 +2311,8 @@ Value* DataFlowEntry::getTricoreReturnValue() {
 
             if (foundRet) {
                 for (Instruction& ins : bb.getInstList()) {
-                    ins.dump();
                     if (StoreInst* si = dyn_cast<StoreInst>(&ins)) { //find last usage of a2 or d2 //TODO other instructions ?
                         for (unsigned int i = 0, n = si->getNumOperands(); i < n; i++) {
-                            si->getOperand(i)->dump();
                             if (si->getOperand(i) == _config->getLlvmRegister("d2")) {
                                 lastOneIsD2 = true;
                             } else if (si->getOperand(i) == _config->getLlvmRegister("a2")) {

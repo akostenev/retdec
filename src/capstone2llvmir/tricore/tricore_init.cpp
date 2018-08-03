@@ -93,14 +93,24 @@ void Capstone2LlvmIrTranslatorTricore::initializeRegNameMap()
 
     std::map<tricore_reg, llvm::ConstantInt*> initGlobalAddress =
     {
-        {TRICORE_REG_A_0, llvm::ConstantInt::get(getType(), 0x00009DC0)},
-        {TRICORE_REG_A_1, llvm::ConstantInt::get(getType(), 0x0002CF9C)},
+        {TRICORE_REG_A_0, llvm::ConstantInt::get(getType(), 0xD0009DC0)},
+        {TRICORE_REG_A_1, llvm::ConstantInt::get(getType(), 0x8002CF9C)},
         {TRICORE_REG_A_9, llvm::ConstantInt::get(getType(), 0x8016D340)}
     };
 
     _initGlobalAddress = std::move(initGlobalAddress);
 
 }
+
+llvm::ConstantInt* Capstone2LlvmIrTranslatorTricore::getInitGlobalAddress(tricore_reg r) const {
+    auto fInit = _initGlobalAddress.find(r);
+    if (fInit == std::end(_initGlobalAddress)) {
+        return nullptr;
+    } else {
+        return fInit->second;
+    }
+}
+
 
 /**
 * TODO
@@ -235,22 +245,22 @@ void Capstone2LlvmIrTranslatorTricore::generateRegisters() {
     createRegister(TRICORE_REG_D_14, _regLt);
     createRegister(TRICORE_REG_D_15, _regLt);
 
-    createRegister(TRICORE_REG_A_0, _regLt);
-    createRegister(TRICORE_REG_A_1, _regLt);
-    createRegister(TRICORE_REG_A_2, _regLt);
-    createRegister(TRICORE_REG_A_3, _regLt);
-    createRegister(TRICORE_REG_A_4, _regLt);
-    createRegister(TRICORE_REG_A_5, _regLt);
-    createRegister(TRICORE_REG_A_6, _regLt);
-    createRegister(TRICORE_REG_A_7, _regLt);
-    createRegister(TRICORE_REG_A_8, _regLt);
-    createRegister(TRICORE_REG_A_9, _regLt);
-    createRegister(TRICORE_REG_A_10, _regLt);
-    createRegister(TRICORE_REG_A_11, _regLt);
-    createRegister(TRICORE_REG_A_12, _regLt);
-    createRegister(TRICORE_REG_A_13, _regLt);
-    createRegister(TRICORE_REG_A_14, _regLt);
-    createRegister(TRICORE_REG_A_15, _regLt);
+    createRegister(TRICORE_REG_A_0, _regLt, getInitGlobalAddress(TRICORE_REG_A_0));
+    createRegister(TRICORE_REG_A_1, _regLt, getInitGlobalAddress(TRICORE_REG_A_1));
+    createRegister(TRICORE_REG_A_2, _regLt, getInitGlobalAddress(TRICORE_REG_A_2));
+    createRegister(TRICORE_REG_A_3, _regLt, getInitGlobalAddress(TRICORE_REG_A_3));
+    createRegister(TRICORE_REG_A_4, _regLt, getInitGlobalAddress(TRICORE_REG_A_4));
+    createRegister(TRICORE_REG_A_5, _regLt, getInitGlobalAddress(TRICORE_REG_A_5));
+    createRegister(TRICORE_REG_A_6, _regLt, getInitGlobalAddress(TRICORE_REG_A_6));
+    createRegister(TRICORE_REG_A_7, _regLt, getInitGlobalAddress(TRICORE_REG_A_7));
+    createRegister(TRICORE_REG_A_8, _regLt, getInitGlobalAddress(TRICORE_REG_A_8));
+    createRegister(TRICORE_REG_A_9, _regLt, getInitGlobalAddress(TRICORE_REG_A_9));
+    createRegister(TRICORE_REG_A_10, _regLt, getInitGlobalAddress(TRICORE_REG_A_10));
+    createRegister(TRICORE_REG_A_11, _regLt, getInitGlobalAddress(TRICORE_REG_A_11));
+    createRegister(TRICORE_REG_A_12, _regLt, getInitGlobalAddress(TRICORE_REG_A_12));
+    createRegister(TRICORE_REG_A_13, _regLt, getInitGlobalAddress(TRICORE_REG_A_13));
+    createRegister(TRICORE_REG_A_14, _regLt, getInitGlobalAddress(TRICORE_REG_A_14));
+    createRegister(TRICORE_REG_A_15, _regLt, getInitGlobalAddress(TRICORE_REG_A_15));
 
     createRegister(TRICORE_REG_E_0, _regLt);
     createRegister(TRICORE_REG_E_2, _regLt);

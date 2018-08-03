@@ -62,106 +62,82 @@ bool TricoreLoad::runOnModule(Module& M)
 
 	for (auto &F : M.getFunctionList())
 	for (auto &B : F)
-	for (auto &I : B)
+	for (Instruction &I : B)
 	{
-// 		if (CallInst* call = dyn_cast<CallInst>(&I))
-// 		{
-// 			if (isIndirectCall(call))
-// 			{
-// 				continue;
-// 			}
-//
-// 			for (auto& a : call->arg_operands())
-// 			{
-// 				auto* aa = dyn_cast_or_null<Instruction>(skipCasts(a));
-// 				if (aa == nullptr)
-// 				{
-// 					continue;
-// 				}
-// 				auto* use = RDA.getUse(aa);
-// 				if (use == nullptr || use->defs.size() != 1)
-// 				{
-// 					continue;
-// 				}
-// 				auto* d = *use->defs.begin();
-// 				if (a->getType()->isFloatingPointTy()
-// 						&& !d->getSource()->getType()->isFloatingPointTy())
-// 				{
-// 					localizeDefinition(d);
-// 				}
-// 				else if (config->isRegister(d->getSource()))
-// 				{
-// 					localizeDefinition(d);
-// 				}
-// 			}
-// 		}
-// 		else if (ReturnInst* ret = dyn_cast<ReturnInst>(&I))
-// 		{
-// 			auto* a = skipCasts(ret->getReturnValue());
-// 			if (a == nullptr)
-// 				continue;
-// 			if (auto* l = dyn_cast<LoadInst>(a))
-// 			{
-// 				auto* use = RDA.getUse(l);
-// 				if (use == nullptr || use->defs.size() != 1)
-// 				{
-// 					continue;
-// 				}
-// 				auto* d = *use->defs.begin();
-// 				if (!config->isRegister(d->getSource()))
-// 				{
-// 					continue;
-// 				}
-// 				localizeDefinition(d);
-// 			}
-// 		}
-// 		else
-                if (StoreInst* s = dyn_cast<StoreInst>(&I))
-		{
+            if (StoreInst* s = dyn_cast<StoreInst>(&I)) {
+                auto str = s->getPointerOperand()->getName().str();
+                if (!(str.rfind("a0.", 0) == 0 ||
+                    str.rfind("a1.", 0) == 0 ||
+                    str.rfind("a2.", 0) == 0 ||
+                    str.rfind("a3.", 0) == 0 ||
+                    str.rfind("a8.", 0) == 0 ||
+                    str.rfind("a9.", 0) == 0)) {
+                    continue;
+                }
 
-                        std::cout << "\t.3C.>\t" << llvmObjToString(s->getPointerOperand()) << std::endl;
+                /**
+                * %v3_8012c21a = load i32, i32* inttoptr (i32 <OFFSET 2088> to i32*), align 8
+                * store i32 %v3_8012c21a, i32* %<a2>.global-to-local, align 4
+                *
+                * %v1_8012c222 = add i32 %v3_8012c21a, <OFFSET 2594>
+                * store i32 %v1_8012c222, i32* %a15.global-to-local, align 4
+                * %v1_8012c226 = inttoptr i32 %v1_8012c222 to i16*
+                * %v2_8012c226 = load i16, i16* %v1_8012c226, align 2
+                * %v3_8012c226 = sext i16 %v2_8012c226 to i32
+                * store i32 %v3_8012c226, i32* %d15.global-to-local, align 4
+                *
+                */
+                if (Instruction* ins = dyn_cast<Instruction>(s->getValueOperand())) {
+                    for (auto *U : ins->users()) {
+                        llvm::ConstantInt* disp = nullptr;
+                        llvm::ConstantInt* baseAddress = nullptr;
+                        if (Instruction* fAddDispIns = dyn_cast<Instruction>(U)) {
+                            if (fAddDispIns->getOpcode() == Instruction::Add) {
+                                if (fAddDispIns->getNumOperands() >= 2 && fAddDispIns->getOperand(1)->getType()->isIntegerTy()) {
+                                    disp = dyn_cast<ConstantInt>(fAddDispIns->getOperand(1)); //found disp
 
-                        std::string sOperand = ""; // = llvmObjToString(s->getPointerOperand());
-                        auto fGlobalToLocal = sOperand.find(".global-to-local");
-
-                        if (fGlobalToLocal == std::string::npos) {
+                                    if (Instruction *intToPtrIns = dyn_cast<Instruction>(fAddDispIns->getOperand(0))) {
+                                        if (auto* c = dyn_cast<Constant>(intToPtrIns->getOperand(0))) {
+                                            baseAddress = dyn_cast<ConstantInt>(c->getOperand(0)); //found baseAddress
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (!disp || !baseAddress) {
                             continue;
                         }
 
-//                         std::string regName = sOperand.substr(1, fGlobalToLocal);
-//                         if (regName[0] == 'a') {
-//                             s->getPointerOperand().
-//                         }
-//
-//                         if (fGlobalToLocal != std::end(sOperand)) {
-//                             std::string reg = sOperand
-//                         }
-//
-//
-//                         s->getPointerOperand()->
+                        auto dispValue = disp->getSExtValue();
+                        auto baseAddressValue = baseAddress->getZExtValue();
+                        for (auto *UU : U->users()) {
+                            for (auto *UUU : UU->users()) {
+                                if (LoadInst* li = dyn_cast<LoadInst>(UUU)) {
 
+                                    std::cout << "\tReplace " << s->getPointerOperand()->getName().str() <<
+                                        "[0x" << std::hex << baseAddressValue << "][" << std::dec << dispValue << "] "
+                                        "LOAD with const " << std::dec << dispValue << std::endl;
+                                    if (li->getType() == disp->getType()) {
+                                        li->replaceAllUsesWith(disp);
+                                    } else {
+                                        li->replaceAllUsesWith(llvm::ConstantInt::get(li->getType(), dispValue));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
-// 			if (!config->isRegister(s->getPointerOperand()))
-// 			{
-// 				continue;
-// 			}
-//
-// 			auto* d = RDA.getDef(s);
-// 			if (d == nullptr)
-// 			{
-// 				continue;
-// 			}
-//
-// 			auto* vo = skipCasts(s->getValueOperand());
-// 			if (isa<CallInst>(vo))
-// 			{
-// 				localizeDefinition(d);
-// 			}
-// 			else if (isa<Argument>(vo))
-// 			{
-// 				localizeDefinition(d);
-// 			}
-		}
+            }
+            else if (LoadInst* li = dyn_cast<LoadInst>(&I)) {
+                if (auto* c = dyn_cast<Constant>(li->getOperand(0))) {
+                    auto* baseAddress = dyn_cast<ConstantInt>(c->getOperand(0)); //found baseAddress
+                    std::cout << "\tReplace " << li->getPointerOperand()->getName().str() <<
+                        "[0x" << std::hex << baseAddress->getZExtValue() << "] LOAD with const " << std::dec << 999 << std::endl;
+
+                    li->replaceAllUsesWith(llvm::ConstantInt::get(li->getType(), 999));
+                }
+            }
 	}
 
 	return false;
