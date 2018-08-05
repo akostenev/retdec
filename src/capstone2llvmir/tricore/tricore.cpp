@@ -219,8 +219,7 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
                             return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
                         }
 
-                        addr = irb.CreateAdd(baseR, disp);
-                        return addr;
+                        return irb.CreateAdd(baseR, disp, "lea");
 
                     } else {
                         assert(false && "UNKNOWN OP FOR LOAD TRICORE_MEM");

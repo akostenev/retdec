@@ -2327,7 +2327,7 @@ Value* DataFlowEntry::getTricoreReturnValue() {
             }
         }
     }
-    return nullptr;
+    return _config->getLlvmRegister("d2");
 }
 
 } // namespace bin2llvmir
