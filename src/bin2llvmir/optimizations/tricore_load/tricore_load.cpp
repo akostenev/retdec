@@ -4,6 +4,7 @@
 */
 
 #include <cassert>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 
@@ -38,10 +39,18 @@ static RegisterPass<TricoreLoad> X(
 );
 
 TricoreLoad::TricoreLoad() :
-		ModulePass(ID)
+		ModulePass(ID),
+		Input("/home/zeus/dc/fw/DX55ZDCUJ0000.bin", std::ifstream::binary)
 {
 
 }
+
+TricoreLoad::~TricoreLoad() {
+    if (Input.is_open()) {
+        Input.close();
+    }
+}
+
 
 void TricoreLoad::getAnalysisUsage(AnalysisUsage &AU) const
 {
@@ -60,8 +69,21 @@ bool TricoreLoad::runOnModule(Module& M)
 		return false;
 	}
 
-	ReachingDefinitionsAnalysis RDA;
-	RDA.runOnModule(M, config);
+	auto a9On2088 = getValOnPos(0x8016D340, 2088, 4);
+        std::cout << "Word on a9[2088]: " << std::hex << a9On2088 << std::endl;
+        std::cout << "HWORD on a9[2088][2594]: " << std::hex << getValOnPos(a9On2088, 2594, 2) << std::endl;
+
+
+
+
+//         Input.close();
+
+
+//         Input.seekg()
+
+
+// 	ReachingDefinitionsAnalysis RDA;
+// 	RDA.runOnModule(M, config);
 
         /*
             %2 = load i32, i32* @a9, align 4
@@ -247,7 +269,6 @@ bool TricoreLoad::runOnModule(Module& M)
                                                             break;
                                                         }
 
-
 //                                                         std::cout << "Found matching a9[X][Y] store, search usage of store " << std::flush; s->dump();
 //                                                         std::cout << "\tY:" << std::flush; inst->dump();
 
@@ -258,25 +279,49 @@ bool TricoreLoad::runOnModule(Module& M)
                                                             for (auto *UUU : UU->users()) {
 //                                                                 UUU->dump(); //%12 = load i16, i16* %11, align 2
 
-                                                                for (auto *UUUU : UUU->users()) {
-//                                                                     UUUU->dump(); //%13 = sext i16 %12 to i32
+                                                                if (LoadInst* li = dyn_cast<LoadInst>(UUU)) {
+                                                                    ConstantInt* X = cast<ConstantInt>((*(fAddDispSecondDim->second.begin())->second.begin())->getOperand(1));
+                                                                    ConstantInt* Y = cast<ConstantInt>(inst->getOperand(1));
 
-                                                                    for (auto *UUUUU : UUUU->users()) {
-                                                                        if (StoreInst* finalStore = dyn_cast<StoreInst>(UUUUU)) {
-//                                                                             std::cout << "VAL: " << std::flush; finalStore->getValueOperand()->dump();
-//                                                                             std::cout << "PTR: " << std::flush; finalStore->getPointerOperand()->dump();
+                                                                    std::cout << "X: " << std::dec << X->getSExtValue() << std::endl;
+                                                                    std::cout << "Y: " << std::dec << Y->getSExtValue() << std::endl;
+                                                                    long unsigned int valOnPos = getValOnPos(getValOnPos(0x8016D340, X->getSExtValue(), 4), Y->getSExtValue(), li->getType()->getIntegerBitWidth() / 8);
+                                                                    std::cout << "Replace load with ConstInt: 0x" << std::hex << valOnPos << std::endl;
 
-//                                                                             std::cout << "\tY:" << std::flush; inst->dump();
+                                                                    li->replaceAllUsesWith(ConstantInt::get(li->getType(), valOnPos));
 
-                                                                            //There are multiple AddInstruction, but all have the same disp, therefore take the first
-//                                                                             std::cout << "\tX:" << std::flush; (*(fAddDispSecondDim->second.begin())->second.begin())->dump();
 
-                                                                            finalStore->getValueOperand()->replaceAllUsesWith(ConstantInt::get(finalStore->getValueOperand()->getType(), 0xF2D299));
-                                                                            std::cout << "NewStoreInst: " << std::flush; UUUUU->dump(); //store i32 %13, i32* @d15, align 4  --> d15 = *a15
-                                                                            break;
-                                                                        }
-                                                                    }
+//                                                                     for (auto *UUUU : UUU->users()) {
+// //                                                                     UUUU->dump(); //%13 = sext i16 %12 to i32
+//
+//                                                                         for (auto *UUUUU : UUUU->users()) {
+//                                                                             if (StoreInst* finalStore = dyn_cast<StoreInst>(UUUUU)) {
+//                                                                                 std::cout << "OldStoreInst: " << std::flush; finalStore->dump(); //store i32 %13, i32* @d15, align 4  --> d15 = *a15
+//                                                                                 std::cout << "VAL: " << std::flush; finalStore->getValueOperand()->dump();
+//                                                                                 std::cout << "PTR: " << std::flush; finalStore->getPointerOperand()->dump();
+//
+//                                                                                 ConstantInt* X = cast<ConstantInt>((*(fAddDispSecondDim->second.begin())->second.begin())->getOperand(1));
+//                                                                                 ConstantInt* Y = cast<ConstantInt>(inst->getOperand(1));
+//
+//                                                                                 std::cout << "X: " << std::dec << X->getSExtValue() << std::endl;
+//                                                                                 std::cout << "Y: " << std::dec << Y->getSExtValue() << std::endl;
+//
+//                                                                                 long unsigned int valOnPos = getValOnPos(getValOnPos(0x8016D340, X->getSExtValue(), 4), Y->getSExtValue(), li->getType()->getIntegerBitWidth() / 8);
+//                                                                                 std::cout << "Replace store with ConstInt: 0x" << std::hex << valOnPos << std::endl;
+//                                                                                 finalStore->getValueOperand()->replaceAllUsesWith(ConstantInt::get(finalStore->getValueOperand()->getType(), valOnPos));
+// //                                                                                 finalStore->getValueOperand()->replaceAllUsesWith(ConstantInt::get(finalStore->getValueOperand()->getType(), 0xF2D299));
+//
+//                                                                                 std::cout << "NewStoreInst: " << std::flush; finalStore->dump(); //store i32 %13, i32* @d15, align 4  --> d15 = *a15
+//                                                                                 break;
+//                                                                             }
+//                                                                         }
+//                                                                     }
+
+
                                                                 }
+
+
+
                                                             }
                                                         }
                                                         break; //found first matching add disp instruction, we can stop searching
@@ -384,8 +429,39 @@ bool TricoreLoad::runOnModule(Module& M)
 // //             }
 	}
 
-	return false;
+	return foundA9;
 }
+
+long unsigned int TricoreLoad::getValOnPos(long base, long disp, unsigned int size) {
+    if (!Input.good()) {
+        llvm::errs() << "Bad Input file: " << '\n';
+        exit(1);
+    }
+
+    long unsigned int mask = 0; //~(~0 << (size * 8));
+    switch (size) {
+        case 8: mask = 0xFFFFFFFFFFFFFFFF; break;
+        case 4: mask = 0xFFFFFFFF; break;
+        case 2: mask = 0xFFFF; break;
+        case 1: mask = 0xFF; break;
+        default: assert(false && "Unknown Mask");
+    }
+
+    char buffer[size];
+
+    Input.seekg(base - 0x80000000, Input.beg);
+    Input.seekg(disp, Input.cur);
+    Input.read(buffer, size);
+
+    long unsigned int ret = 0;
+    for (int i = size; i >= 0; --i) {
+        ret |= ((buffer[i] & 0xFF) << (i * 8));
+    }
+    ret &= mask;
+
+    return ret;
+}
+
 
 } // namespace bin2llvmir
 } // namespace retdec

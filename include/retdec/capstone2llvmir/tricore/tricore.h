@@ -8,7 +8,6 @@
 #define RETDEC_CAPSTONE2LLVMIR_TRICORE_TRICORE_H
 
 #include <array>
-#include <bitset>
 #include <tuple>
 #include <utility>
 #include <map>

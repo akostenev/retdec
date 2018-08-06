@@ -16,11 +16,15 @@ class TricoreLoad : public llvm::ModulePass
         public:
                 static char ID;
                 TricoreLoad();
+                virtual ~TricoreLoad();
                 virtual void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
                 virtual bool runOnModule(llvm::Module& M) override;
 
         private:
+                long unsigned int getValOnPos(long base, long disp, unsigned size = 4);
+
                 Config* config = nullptr;
+                std::ifstream Input;
 };
 
 } // namespace bin2llvmir
