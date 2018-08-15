@@ -9,9 +9,6 @@
 namespace retdec {
 namespace capstone2llvmir {
 
-/**
-* TODO
-*/
 void Capstone2LlvmIrTranslatorTricore::initializeRegNameMap()
 {
 
@@ -111,18 +108,11 @@ llvm::ConstantInt* Capstone2LlvmIrTranslatorTricore::getInitGlobalAddress(tricor
     }
 }
 
-
-/**
-* TODO
-*/
 void Capstone2LlvmIrTranslatorTricore::initializeRegTypeMap()
 {
     auto* i1 = llvm::IntegerType::getInt1Ty(_module->getContext());
     auto* i32 = llvm::IntegerType::getInt32Ty(_module->getContext());
     auto* i64 = llvm::IntegerType::getInt64Ty(_module->getContext());
-
-    auto* p32 = llvm::PointerType::getInt32PtrTy(_module->getContext());
-    auto* p64 = llvm::PointerType::getInt64PtrTy(_module->getContext());
 
     std::map<uint32_t, llvm::Type*> r2t =
     {

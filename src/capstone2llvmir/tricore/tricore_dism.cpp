@@ -1,5 +1,7 @@
 #include "retdec/capstone2llvmir/tricore/tricore.h"
 
+#include <iostream>
+
 /**
  * @src https://stackoverflow.com/questions/17857596/how-to-convert-a-range-subset-of-bits-in-a-c-bitset-to-a-number
  */
@@ -2021,13 +2023,50 @@ static std::map<std::size_t, void (*)(cs_tricore* t, cs_insn* i, const std::bits
 
 };
 
+#define SRRSMASK 0b111111
+bool isSrrsFormat(unsigned int ins) {
+    switch (ins & SRRSMASK) {
+        case TRICORE_INS_ADDSCA16:
+            return true;
+
+        default:
+            return false;
+    }
+};
+
+#define BRRNMASK 0b1111111
+bool isBrrnFormat(unsigned int ins) {
+    switch (ins & BRRNMASK) {
+        case TRICORE_INS_JNZT:
+            return true;
+
+        default:
+            return false;
+    }
+};
+
 cs_tricore::cs_tricore(cs_insn* i) : op2(0), n(0) {
     std::bitset<64> b = i->size == 4 ? i->bytes[3] << 24 | i->bytes[2] << 16 | i->bytes[1] << 8 | i->bytes[0] : i->bytes[1] << 8 | i->bytes[0];
 
-     auto fInsToDism = insToDism.find(i->id);
-     if (fInsToDism == std::end(insToDism)) {
-        assert(false && "Unknown Tricore Instruction");
-     } else {
-        fInsToDism->second(this, i, b);
-     }
+    if (isSrrsFormat(i->id)) { //Check if SRRS op format
+        i->id = i->id & SRRSMASK;
+    } else if (isBrrnFormat(i->id)) { //Check if BRRN op format
+        i->id = i->id & BRRNMASK;
+    }
+
+    auto fInsToDism = insToDism.find(i->id);
+    if (fInsToDism == std::end(insToDism)) {
+
+
+    std::cout << "Translation of unhandled instruction: " << i->id << " @ " << std::hex << i->address << std::endl;
+    if (i->size == 4) {
+        std::cout << static_cast<unsigned>(i->bytes[3]) << " " << static_cast<unsigned>(i->bytes[2]) << " " << static_cast<unsigned>(i->bytes[1]) << " " << static_cast<unsigned>(i->bytes[0]) << std::endl;
+    } else if (i->size == 2) {
+        std::cout << static_cast<unsigned>(i->bytes[1]) << " " << static_cast<unsigned>(i->bytes[0]) << std::endl;
+    }
+
+    assert(false && "Unknown Tricore Instruction");
+    } else {
+    fInsToDism->second(this, i, b);
+    }
 }

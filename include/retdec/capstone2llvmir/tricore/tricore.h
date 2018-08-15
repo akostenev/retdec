@@ -21,7 +21,7 @@ namespace capstone2llvmir {
 class Capstone2LlvmIrTranslatorTricore : public Capstone2LlvmIrTranslator {
 public:
     Capstone2LlvmIrTranslatorTricore(llvm::Module* m, cs_mode basic = CS_MODE_32, cs_mode extra = CS_MODE_LITTLE_ENDIAN);
-    virtual ~Capstone2LlvmIrTranslatorTricore();
+    virtual ~Capstone2LlvmIrTranslatorTricore() = default;
 
     /**
     * Override translate, for tricore2capstone
@@ -49,6 +49,9 @@ protected:
     virtual void generateDataLayout() override;
     virtual void generateRegisters() override;
 
+    std::map<tricore_reg, llvm::ConstantInt*> _initGlobalAddress;
+    llvm::ConstantInt* getInitGlobalAddress(tricore_reg r) const;
+
 protected:
     // These are used to save lines needed to declare locale operands in
     // each translation function.
@@ -66,15 +69,6 @@ protected:
 
     //Helper funcs
 protected:
-    //returns e.g. E[0] for D[0], E2 for D[2]
-    uint32_t regToExtendedReg(uint32_t r) const;
-    std::pair<uint32_t, uint32_t> extendedRegToRegs(uint32_t r) const;
-
-    template<std::size_t N>
-    llvm::Value* constInt(llvm::Value* t) {
-        return llvm::ConstantInt::get(t->getType(), N);
-    }
-    llvm::IntegerType* getType(uint8_t bitSize = 32);
     llvm::Value* getCurrentPc(cs_insn* i);
     llvm::Value* getNextInsnAddress(cs_insn* i);
 
@@ -82,6 +76,21 @@ protected:
     llvm::CallInst* generateCallFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative = true);
     llvm::CallInst* generateCondBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* cond, llvm::Value* t, bool relative = true);
     llvm::CallInst* generateReturnFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative = true);
+
+
+    //returns e.g. E[0] for D[0], E2 for D[2]
+    uint32_t regToExtendedReg(uint32_t r) const;
+    std::pair<uint32_t, uint32_t> extendedRegToRegs(uint32_t r) const;
+
+    template<std::size_t N>
+    llvm::Value* constInt(llvm::Value* t = nullptr) {
+        if (!t) {
+            return llvm::ConstantInt::get(getType(), N);
+        } else {
+            return llvm::ConstantInt::get(t->getType(), N);
+        }
+    }
+    llvm::IntegerType* getType(uint8_t bitSize = 32);
 
     template<std::size_t N>
     llvm::Value* ld(cs_tricore* t, llvm::IRBuilder<>& irb) {
@@ -97,13 +106,7 @@ protected:
     llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb, bool extended = false);
     llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::THROW, bool extended = false);
 
-private:
-    std::map<std::pair<tricore_reg, uint64_t>, llvm::GlobalValue*> _memToGlobalValue;
-    std::map<tricore_reg, llvm::ConstantInt*> _initGlobalAddress;
-    llvm::Value* getMemToGlobalValue(tricore_reg r, uint64_t disp, uint8_t size);
-    bool replaceWithGlobalVal(tricore_reg r) const;
-
-    llvm::ConstantInt* getInitGlobalAddress(tricore_reg r) const;
+    void storeCarry(llvm::Value* v, llvm::IRBuilder<>& irb);
 
 protected:
     static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>&)> _i2fm;

@@ -2,28 +2,6 @@
 
 #include <iostream>
 
-#define SRRSMASK 0b111111
-bool isSrrsFormat(unsigned int ins) {
-    switch (ins & SRRSMASK) {
-        case TRICORE_INS_ADDSCA16:
-            return true;
-
-        default:
-            return false;
-    }
-};
-
-#define BRRNMASK 0b1111111
-bool isBrrnFormat(unsigned int ins) {
-    switch (ins & BRRNMASK) {
-        case TRICORE_INS_JNZT:
-            return true;
-
-        default:
-            return false;
-    }
-};
-
 namespace retdec {
 namespace capstone2llvmir {
 
@@ -35,11 +13,6 @@ Capstone2LlvmIrTranslatorTricore::Capstone2LlvmIrTranslatorTricore(llvm::Module*
     initializeArchSpecific();
 
     generateEnvironment();
-}
-
-Capstone2LlvmIrTranslatorTricore::~Capstone2LlvmIrTranslatorTricore()
-{
-    // Nothing specific to TriCore.
 }
 
 Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::translate(const std::vector<uint8_t>& bytes,
@@ -119,25 +92,14 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
 void Capstone2LlvmIrTranslatorTricore::translateInstruction(cs_insn* i, llvm::IRBuilder<>& irb) {
     _insn = i;
 
+    cs_tricore t(i); // dism to capstone-tricore
+
     auto fIt = _i2fm.find(i->id);
     if (fIt != _i2fm.end() && fIt->second != nullptr) {
         auto f = fIt->second;
-
-        cs_tricore t(i); // dism to capstone-tricore
         (this->*f)(i, &t, irb); // translate to LLVM-IR
 
     } else {
-
-        if (isSrrsFormat(i->id)) { //Check if SRRS op format
-            i->id = i->id & SRRSMASK;
-            translateInstruction(i, irb);
-            return;
-        } else if (isBrrnFormat(i->id)) { //Check if BRRN op format
-            i->id = i->id & BRRNMASK;
-            translateInstruction(i, irb);
-            return;
-        }
-
         std::cout << "Translation of unhandled instruction: " << i->id << " @ " << std::hex << i->address << std::endl;
         if (i->size == 4) {
             std::cout << static_cast<unsigned>(i->bytes[3]) << " " << static_cast<unsigned>(i->bytes[2]) << " " << static_cast<unsigned>(i->bytes[1]) << " " << static_cast<unsigned>(i->bytes[0]) << std::endl;
@@ -215,20 +177,12 @@ llvm::Value* Capstone2LlvmIrTranslatorTricore::loadOp(cs_tricore_op& op, llvm::I
                         storeRegister(op.mem.base, addr, irb); //pinc A[a] += disp)
 
                     } else if (op.mem.op == TRICORE_MEM_OP_LEA) { // mem(A[a], disp): load EA = A[a] + disp
-                        if (replaceWithGlobalVal(op.mem.base)) {
-                            return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
-                        }
-
                         return irb.CreateAdd(baseR, disp, "lea");
 
                     } else {
                         assert(false && "UNKNOWN OP FOR LOAD TRICORE_MEM");
                     }
                 }
-            }
-
-            if (baseR && replaceWithGlobalVal(op.mem.base)) {
-                return irb.CreateLoad(getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
             }
 
             auto* pt = llvm::PointerType::get(getType(op.mem.size), 0);
@@ -305,10 +259,6 @@ llvm::Instruction* Capstone2LlvmIrTranslatorTricore::storeOp(cs_tricore_op& op, 
                 v = irb.CreateZExtOrTrunc(v, getType(op.mem.size));
             }
 
-            if (baseR && replaceWithGlobalVal(op.mem.base)) {
-                return irb.CreateStore(v, getMemToGlobalValue(op.mem.base, op.mem.disp.value, op.mem.size));
-            }
-
             auto* pt = llvm::PointerType::get(v->getType(), 0);
             addr = irb.CreateIntToPtr(addr, pt);
             return irb.CreateStore(v, addr);
@@ -357,25 +307,14 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
     }
 
     std::pair<uint32_t, uint32_t> pRegs;
-//     uint32_t extR = 0;
     if (extended) {
         pRegs = extendedRegToRegs(r);
         r = regToExtendedReg(r);
     }
-//     else {
-//         extR = regToExtendedReg(r);
-//         if (extR != TRICORE_REG_INVALID) {
-//             pRegs = extendedRegToRegs(extR);
-//         }
-//     }
 
     auto* llvmReg = getRegister(r);
     auto* regT = getRegisterType(r);
     assert(llvmReg != nullptr && "storeRegister() unhandled reg.");
-
-    if (replaceWithGlobalVal(tricore_reg(r))) {
-        return irb.CreateStore(val, getMemToGlobalValue(tricore_reg(r), 0, 32));
-    }
 
     if (val->getType() != llvmReg->getValueType()) {
 
@@ -392,10 +331,6 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
                 case eOpConv::ZEXT_TRUNC:
                     val = irb.CreateZExtOrTrunc(val, regT);
                     break;
-
-    //             case eOpConv::FP_CAST:
-    //                 val = irb.CreateFPCast(val, regT);
-    //                 break;
 
                 default:
                     assert(false && "Unhandled eOpConv type.");
@@ -417,80 +352,16 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
         irb.CreateStore(hVal, hReg);
 
     }
-//     else if (extR != TRICORE_REG_INVALID) { // update extended register
-//         auto* extLlvmReg = loadRegister(extR, irb);
-//         auto* extVal = irb.CreateZExt(val, extLlvmReg->getType());
-//
-//         if (pRegs.first == r) {
-//             auto* maskL = llvm::ConstantInt::get(extLlvmReg->getType(), 0xffffffff00000000);
-//             auto* andL = irb.CreateAnd(extLlvmReg, maskL);
-//             auto* orL = irb.CreateOr(andL, extVal);
-//             irb.CreateStore(orL, getRegister(extR));
-//
-//         } else if (pRegs.second == r) {
-//             auto* maskH = llvm::ConstantInt::get(extLlvmReg->getType(), 0x0000000ffffffff);
-//             auto* andH = irb.CreateAnd(extLlvmReg, maskH);
-//             auto* orH = irb.CreateOr(andH, irb.CreateShl(extVal, 32));
-//             irb.CreateStore(orH, getRegister(extR));
-//
-//         } else {
-//             assert(false);
-//         }
-//     }
 
     return irb.CreateStore(val, llvmReg);
 }
 
-
-llvm::Value* Capstone2LlvmIrTranslatorTricore::getMemToGlobalValue(tricore_reg r, uint64_t disp, uint8_t size) {
-    auto fGlobalValue = _memToGlobalValue.find(std::make_pair(r, disp));
-
-    if (fGlobalValue != std::end(_memToGlobalValue)) {
-        return fGlobalValue->second;
-    } else {
-
-        llvm::ConstantInt* init = nullptr;
-        auto fInit = _initGlobalAddress.find(r);
-        if (fInit == std::end(_initGlobalAddress)) {
-            init = llvm::ConstantInt::get(getType(size), 0);
-        } else {
-            init = fInit->second;
-        }
-
-        std::stringstream ss;
-        ss << getRegisterName(r) << "_" << disp;
-
-        auto* gv = new llvm::GlobalVariable(
-                        *_module,
-                        getType(size),
-                        false, // isConstant
-                        llvm::GlobalValue::ExternalLinkage,
-                        init,
-                        ss.str(),
-                        nullptr,
-                        llvm::GlobalValue::ThreadLocalMode::NotThreadLocal,
-                        0,
-                        true
-        );
-
-        _memToGlobalValue.insert(std::make_pair(std::make_pair(r, disp), gv));
-        return gv;
-    }
-}
-
-bool Capstone2LlvmIrTranslatorTricore::replaceWithGlobalVal(tricore_reg r) const {
-    return false;
-//     switch (r) {
-// //         case TRICORE_REG_A_0:
-// //         case TRICORE_REG_A_1:
-// //         case TRICORE_REG_A_2:
-// //         case TRICORE_REG_A_9:
-// //             return true;
-//
-//         default:
-//             return false;
-//
-//     }
+void Capstone2LlvmIrTranslatorTricore::storeCarry(llvm::Value* v, llvm::IRBuilder< llvm::ConstantFolder >& irb) {
+    auto *carry_out = irb.CreateSelect(
+        irb.CreateICmpNE(irb.CreateAnd(v, 0x80000000), constInt<0>(v)),
+        constInt<1>(getRegister(TRICORE_REG_CF)),
+        constInt<0>(getRegister(TRICORE_REG_CF)));
+    storeRegister(TRICORE_REG_CF, carry_out, irb);
 }
 
 llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
@@ -507,7 +378,7 @@ llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateBranchFunctionCall(cs_
 }
 
 llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateCallFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
-        auto* a1t = _callFunction->getArgumentList().front().getType();
+    auto* a1t = _callFunction->getArgumentList().front().getType();
 
     if (relative) {
         auto* pc = llvm::ConstantInt::get(getType(), i->address);
@@ -546,20 +417,20 @@ llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateReturnFunctionCall(cs_
 }
 
 llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::generateSpecialAsm2LlvmInstr(llvm::IRBuilder<>& irb, cs_insn* i) {
-        retdec::utils::Address a = i->address;
-        auto* gv = getAsm2LlvmMapGlobalVariable();
-        auto* ci = llvm::ConstantInt::get(gv->getValueType(), a, false);
-        auto* s = irb.CreateStore(ci, gv, true);
+    retdec::utils::Address a = i->address;
+    auto* gv = getAsm2LlvmMapGlobalVariable();
+    auto* ci = llvm::ConstantInt::get(gv->getValueType(), a, false);
+    auto* s = irb.CreateStore(ci, gv, true);
 
-        auto* addr = llvm::ConstantInt::get(irb.getInt64Ty(), i->address);
-        std::bitset<64> b = i->size == 4 ? i->bytes[3] << 24 | i->bytes[2] << 16 | i->bytes[1] << 8 | i->bytes[0] : i->bytes[1] << 8 | i->bytes[0];
-        auto* bytes = llvm::ConstantInt::get(irb.getInt64Ty(), b.to_ulong());
+    auto* addr = llvm::ConstantInt::get(irb.getInt64Ty(), i->address);
+    std::bitset<64> b = i->size == 4 ? i->bytes[3] << 24 | i->bytes[2] << 16 | i->bytes[1] << 8 | i->bytes[0] : i->bytes[1] << 8 | i->bytes[0];
+    auto* bytes = llvm::ConstantInt::get(irb.getInt64Ty(), b.to_ulong());
 
-        auto mAddr = llvm::ConstantAsMetadata::get(addr);
-        auto* mBytes = llvm::ConstantAsMetadata::get(bytes);
-        auto* mdn = llvm::MDNode::get(_module->getContext(), {mAddr, mBytes});
-        s->setMetadata("asm-tricore", mdn);
-        return s;
+    auto mAddr = llvm::ConstantAsMetadata::get(addr);
+    auto* mBytes = llvm::ConstantAsMetadata::get(bytes);
+    auto* mdn = llvm::MDNode::get(_module->getContext(), {mAddr, mBytes});
+    s->setMetadata("asm-tricore", mdn);
+    return s;
 }
 
 uint32_t Capstone2LlvmIrTranslatorTricore::regToExtendedReg(uint32_t r) const {

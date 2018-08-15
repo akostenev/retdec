@@ -264,25 +264,25 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations1(cs_insn* i, cs_tr
 
             uint64_t const9From5To0 = t->operands[2].imm.value & 0b111111;
             if (const9From5To0 >> 5 & 1) { //msb is set -> -const9[5:0]
-                const9From5To0 = (const9From5To0 ^ 0b111111) + 1;
+                if (const9From5To0 == 0) {
+                    storeRegister(TRICORE_REG_CF, constInt<0>(getRegister(TRICORE_REG_CF)), irb);
+                } else {
+                    auto first31ToConst5To0AreSet = irb.CreateICmpUGT(irb.CreateAnd(irb.CreateLShr(op1, const9From5To0), 0b111111), constInt<0>());
+                    auto carry_out = irb.CreateSelect(first31ToConst5To0AreSet, constInt<1>(getRegister(TRICORE_REG_CF)), constInt<0>(getRegister(TRICORE_REG_CF)));
+                    storeRegister(TRICORE_REG_CF, carry_out, irb);
+                }
+                o = irb.CreateLShr(op1, const9From5To0);
 
-                auto* testBit31 = irb.CreateAnd(op1, 1 << 31);
-                auto* op1Bit31Set = irb.CreateICmpUGT(testBit31, constInt<0>(op1));
-
-                auto bodyIrb = generateIfThenElse(op1Bit31Set, irb); //first if, second else
-
-                auto* shl1 = bodyIrb.first.CreateShl(llvm::ConstantInt::get(getType(), 1), const9From5To0); //(1 << shift_count)
-                shl1 = bodyIrb.first.CreateSub(shl1, llvm::ConstantInt::get(getType(), 1)); // - 1
-                auto* mskIf = bodyIrb.first.CreateShl(shl1, 32 - const9From5To0);
-                storeOp(t->operands[0], bodyIrb.first.CreateOr(mskIf, bodyIrb.first.CreateLShr(op1, const9From5To0)), bodyIrb.first, eOpConv::THROW);
-
-                storeOp(t->operands[0], bodyIrb.second.CreateLShr(op1, const9From5To0), bodyIrb.second, eOpConv::THROW);
-                //TODO Carry Flag
-                return;
             } else {
-                //TODO Carry Flag
-                auto* sh = llvm::ConstantInt::get(getType(6), const9From5To0);
-                o = irb.CreateShl(op1, irb.CreateZExt(sh, op1->getType()));
+                auto *mskCondition = irb.CreateICmpNE(irb.CreateAnd(irb.CreateLShr(op1, 31), 0b1), constInt<0>());
+                auto *msk = irb.CreateSelect(mskCondition, llvm::ConstantInt::get(op1->getType(), (((1 << const9From5To0) - 1) << (32 - const9From5To0))), constInt<0>());
+                o = irb.CreateOr(msk, irb.CreateLShr(op1, const9From5To0));
+
+                auto *carry_out = irb.CreateSelect(
+                                    irb.CreateICmpNE(irb.CreateAnd(op1, ~(~0 << (const9From5To0 - 1))), constInt<0>()),
+                                    constInt<1>(getRegister(TRICORE_REG_CF)),
+                                    constInt<0>(getRegister(TRICORE_REG_CF)));
+                storeRegister(TRICORE_REG_CF, carry_out, irb);
             }
             break;
         }
@@ -332,8 +332,8 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations2(cs_insn* i, cs_tr
         case 0x00:
         case 0x01:
         {
-            /* TODO flaggs
-             * if (D[b][5:0] >= 0) then {
+            /*
+              if (D[b][5:0] >= 0) then {
                 carry_out = D[b][5:0] ? (D[a][31:32 - D[b][5:0]] != 0) : 0;
                 result = D[a] << D[b][5:0];
                } else {
@@ -346,16 +346,28 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations2(cs_insn* i, cs_tr
              */
             auto* first6Bits = irb.CreateAnd(op2, 0b111111);
             auto* cond = irb.CreateICmpUGE(first6Bits, constInt<0>(op2));
-            auto* shift_count = irb.CreateNeg(first6Bits);
-            auto* condFirstBitIsSet = irb.CreateICmpEQ(irb.CreateLShr(op1, 31), constInt<1>(op1));
-            auto* msk = irb.CreateSelect(condFirstBitIsSet,
-                                         irb.CreateShl(
-                                            irb.CreateSub(irb.CreateShl(constInt<1>(op1), shift_count), constInt<1>(op1)),
-                                            irb.CreateSub(constInt<32>(op1), shift_count)
-                                        ),
-                                        constInt<0>(op1)
-            );
-            o = irb.CreateSelect(cond, irb.CreateShl(op1, first6Bits), irb.CreateOr(msk, irb.CreateLShr(op1, shift_count)));
+            auto *mskCondition = irb.CreateICmpEQ(irb.CreateAnd(irb.CreateLShr(op1, 31), 0b1), constInt<1>());
+            auto *msk = irb.CreateSelect(mskCondition,
+                            irb.CreateShl(irb.CreateSub(irb.CreateShl(constInt<1>(first6Bits), first6Bits), constInt<1>(first6Bits)), irb.CreateSub(constInt<32>(first6Bits), first6Bits)),
+                            constInt<0>());
+
+            o = irb.CreateSelect(cond, irb.CreateShl(op1, first6Bits), irb.CreateOr(msk, irb.CreateLShr(op1, first6Bits)));
+
+            {
+                auto *carry_outTrue = irb.CreateSelect(
+                    irb.CreateICmpUGT(irb.CreateLShr(op1, first6Bits), constInt<0>(op1)),
+                    constInt<1>(getRegister(TRICORE_REG_CF)),
+                    constInt<0>(getRegister(TRICORE_REG_CF))
+                );
+                auto *carry_outFalse = irb.CreateSelect(
+                    irb.CreateICmpNE(irb.CreateLShr(op1, irb.CreateSub(first6Bits, constInt<1>(first6Bits))), constInt<0>(op1)),
+                    constInt<1>(getRegister(TRICORE_REG_CF)),
+                    constInt<0>(getRegister(TRICORE_REG_CF))
+                );
+                auto *carry_out = irb.CreateSelect(cond, carry_outTrue, carry_outFalse);
+                storeRegister(TRICORE_REG_CF, carry_out, irb);
+            }
+
             break;
         }
         case 0x08: // D[c] = D[a] & D[b];
@@ -416,9 +428,17 @@ void Capstone2LlvmIrTranslatorTricore::translate8B(cs_insn* i, cs_tricore* t, ll
                 case 0x00: //result = D[a] + sign_ext(const9); D[c] = result[31:0];
                 case 0x02: //result = D[a] + sign_ext(const9); D[c] = ssov(result, 32);
                 case 0x03: //result = D[a] + sign_ext(const9); // unsigned addition D[c] = suov(result, 32);
-                case 0x04: //result = D[a] + sign_ext(const9); D[c] = result[31:0]; carry_out = carry(D[a],sign_ext(const9),0); //TODO Flag
-                case 0x05: //result = D[a] + sign_ext(const9) + PSW.C; D[c] = result[31:0]; carry_out = carry(D[a],sign_ext(const9),PSW.C); //TODO Flag
                     v = irb.CreateAdd(op1, op2);
+                break;
+
+                case 0x04: //result = D[a] + sign_ext(const9); D[c] = result[31:0]; carry_out = carry(D[a],sign_ext(const9),0);
+                    v = irb.CreateAdd(op1, op2);
+                    storeCarry(v, irb);
+                    break;
+
+                case 0x05: //result = D[a] + sign_ext(const9) + PSW.C; D[c] = result[31:0]; carry_out = carry(D[a],sign_ext(const9),PSW.C);
+                    v = irb.CreateAdd(irb.CreateAdd(op1, op2), irb.CreateZExt(getRegister(TRICORE_REG_CF), op1->getType()));
+                    storeCarry(v, irb);
                     break;
 
                 case 0x08: //result = sign_ext(const9) - D[a]; D[c] = result[31:0];
@@ -1556,16 +1576,32 @@ void Capstone2LlvmIrTranslatorTricore::translate0B(cs_insn* i, cs_tricore* t, ll
         case 0x00: //result = D[a] + D[b]; D[c] = result[31:0];
         case 0x02: //result = D[a] + D[b]; D[c] = ssov(result, 32);
         case 0x03: //result = D[a] + D[b]; // unsigned addition D[c] = suov(result, 32);
-        case 0x04: //result = D[a] + D[b]; D[c] = result[31:0]; carry_out = carry(D[a],D[b],0); //TODO flag
-        case 0x05: //result = D[a] + D[b] + PSW.C; D[c] = result[31:0]; carry_out = carry(D[a], D[b], PSW.C); //TODO CARRY
             v = irb.CreateAdd(op1, op2);
+            break;
+
+        case 0x04: //result = D[a] + D[b]; D[c] = result[31:0]; carry_out = carry(D[a],D[b],0);
+            v = irb.CreateAdd(op1, op2);
+            storeCarry(v, irb);
+            break;
+
+        case 0x05: //result = D[a] + D[b] + PSW.C; D[c] = result[31:0]; carry_out = carry(D[a], D[b], PSW.C);
+            v = irb.CreateAdd(irb.CreateAdd(op1, op2), irb.CreateZExt(getRegister(TRICORE_REG_CF), op1->getType()));
+            storeCarry(v, irb);
             break;
 
         case 0x08: //SUBD result = D[a] - D[b]; D[c] = result[31:0];
         case 0x0A: //result = D[a] - D[b]; D[c] = ssov(result, 32);
-        case 0x0C: //result = D[a] - D[b]; D[c] = result[31:0]; carry_out = carry(D[a],~D[b],1); //TODO flag
-        case 0x0D: //result = D[a] - D[b] + PSW.C - 1; D[c] = result[31:0]; carry_out = carry(D[a],~D[b],PSW.C); //TODO CARRY
             v = irb.CreateSub(op1, op2);
+            break;
+
+        case 0x0C: //result = D[a] - D[b]; D[c] = result[31:0]; carry_out = carry(D[a],~D[b],1);
+            v = irb.CreateSub(op1, op2);
+            storeCarry(irb.CreateAdd(v, constInt<1>(v)), irb);
+            break;
+
+        case 0x0D: //result = D[a] - D[b] + PSW.C - 1; D[c] = result[31:0]; carry_out = carry(D[a],~D[b],PSW.C);
+            v = irb.CreateSub(irb.CreateAdd(irb.CreateSub(op1, op2), irb.CreateZExt(getRegister(TRICORE_REG_CF), op1->getType())), constInt<1>(op1));
+            storeCarry(v, irb);
             break;
 
         case 0x10: //result = (D[a] == D[b]); D[c] = zero_ext(result);
