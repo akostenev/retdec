@@ -271,9 +271,6 @@ void Capstone2LlvmIrTranslatorTricore::generateRegisters() {
     createRegister(TRICORE_REG_P_14, _regLt);
 }
 
-/**
- * TODO
- */
 void Capstone2LlvmIrTranslatorTricore::initializeArchSpecific()
 {
     return; // nothing

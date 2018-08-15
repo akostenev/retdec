@@ -40,6 +40,10 @@ public:
 
     // Protected pure virtual methods that must be implemented in concrete classes.
 protected:
+    // TODO: This is a hack, sometimes we need cs_insn deep in helper
+    // methods like @c loadRegister() where it is hard to propagate it.
+    cs_insn* _insn = nullptr;
+
     virtual void translateInstruction(cs_insn* i, llvm::IRBuilder<>& irb) override;
     virtual llvm::StoreInst* generateSpecialAsm2LlvmInstr(llvm::IRBuilder<>& irb, cs_insn* i) override;
     virtual void initializeArchSpecific() override;
@@ -52,23 +56,6 @@ protected:
     std::map<tricore_reg, llvm::ConstantInt*> _initGlobalAddress;
     llvm::ConstantInt* getInitGlobalAddress(tricore_reg r) const;
 
-protected:
-    // These are used to save lines needed to declare locale operands in
-    // each translation function.
-    // In C++17, we could use Structured Bindings:
-    // auto [ op0, op1 ] = loadOpBinary();
-    llvm::Value* op0 = nullptr;
-    llvm::Value* op1 = nullptr;
-    llvm::Value* op2 = nullptr;
-    llvm::Value* op3 = nullptr;
-    llvm::Value* op4 = nullptr;
-
-    // TODO: This is a hack, sometimes we need cs_insn deep in helper
-    // methods like @c loadRegister() where it is hard to propagate it.
-    cs_insn* _insn = nullptr;
-
-    //Helper funcs
-protected:
     llvm::Value* getCurrentPc(cs_insn* i);
     llvm::Value* getNextInsnAddress(cs_insn* i);
 
@@ -76,7 +63,6 @@ protected:
     llvm::CallInst* generateCallFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative = true);
     llvm::CallInst* generateCondBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* cond, llvm::Value* t, bool relative = true);
     llvm::CallInst* generateReturnFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative = true);
-
 
     //returns e.g. E[0] for D[0], E2 for D[2]
     uint32_t regToExtendedReg(uint32_t r) const;
