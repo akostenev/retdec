@@ -266,10 +266,9 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations1(cs_insn* i, cs_tr
             uint64_t const9From5To0 = t->operands[2].imm.value & 0b111111;
             if (const9From5To0 >> 5 & 1) { //msb is set -> -const9[5:0]
                 if (const9From5To0 == 0) {
-                    storeRegister(TRICORE_REG_CF, constInt<0>(getRegister(TRICORE_REG_CF)), irb);
+                    storeRegister(TRICORE_REG_CF, irb.getFalse(), irb);
                 } else {
-                    auto first31ToConst5To0AreSet = irb.CreateICmpUGT(irb.CreateAnd(irb.CreateLShr(op1, const9From5To0), 0b111111), constInt<0>());
-                    auto carry_out = irb.CreateSelect(first31ToConst5To0AreSet, constInt<1>(getRegister(TRICORE_REG_CF)), constInt<0>(getRegister(TRICORE_REG_CF)));
+                    auto *carry_out = irb.CreateICmpUGT(irb.CreateAnd(irb.CreateLShr(op1, const9From5To0), 0b111111), constInt<0>());
                     storeRegister(TRICORE_REG_CF, carry_out, irb);
                 }
                 o = irb.CreateLShr(op1, const9From5To0);
@@ -279,10 +278,7 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations1(cs_insn* i, cs_tr
                 auto *msk = irb.CreateSelect(mskCondition, llvm::ConstantInt::get(op1->getType(), (((1 << const9From5To0) - 1) << (32 - const9From5To0))), constInt<0>());
                 o = irb.CreateOr(msk, irb.CreateLShr(op1, const9From5To0));
 
-                auto *carry_out = irb.CreateSelect(
-                                    irb.CreateICmpNE(irb.CreateAnd(op1, ~(~0 << (const9From5To0 - 1))), constInt<0>()),
-                                    constInt<1>(getRegister(TRICORE_REG_CF)),
-                                    constInt<0>(getRegister(TRICORE_REG_CF)));
+                auto *carry_out = irb.CreateICmpNE(irb.CreateAnd(op1, ~(~0 << (const9From5To0 - 1))), constInt<0>());
                 storeRegister(TRICORE_REG_CF, carry_out, irb);
             }
             break;
@@ -349,22 +345,14 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations2(cs_insn* i, cs_tr
             auto* cond = irb.CreateICmpUGE(first6Bits, constInt<0>(op2));
             auto *mskCondition = irb.CreateICmpEQ(irb.CreateAnd(irb.CreateLShr(op1, 31), 0b1), constInt<1>());
             auto *msk = irb.CreateSelect(mskCondition,
-                            irb.CreateShl(irb.CreateSub(irb.CreateShl(constInt<1>(first6Bits), first6Bits), constInt<1>(first6Bits)), irb.CreateSub(constInt<32>(first6Bits), first6Bits)),
+                            irb.CreateShl(irb.CreateSub(irb.CreateShl(constInt<1>(first6Bits), first6Bits), constInt<1>(first6Bits)),
+                            irb.CreateSub(constInt<32>(first6Bits), first6Bits)),
                             constInt<0>());
 
             o = irb.CreateSelect(cond, irb.CreateShl(op1, first6Bits), irb.CreateOr(msk, irb.CreateLShr(op1, first6Bits)));
-
             {
-                auto *carry_outTrue = irb.CreateSelect(
-                    irb.CreateICmpUGT(irb.CreateLShr(op1, first6Bits), constInt<0>(op1)),
-                    constInt<1>(getRegister(TRICORE_REG_CF)),
-                    constInt<0>(getRegister(TRICORE_REG_CF))
-                );
-                auto *carry_outFalse = irb.CreateSelect(
-                    irb.CreateICmpNE(irb.CreateLShr(op1, irb.CreateSub(first6Bits, constInt<1>(first6Bits))), constInt<0>(op1)),
-                    constInt<1>(getRegister(TRICORE_REG_CF)),
-                    constInt<0>(getRegister(TRICORE_REG_CF))
-                );
+                auto *carry_outTrue = irb.CreateICmpUGT(irb.CreateLShr(op1, first6Bits), constInt<0>(op1));
+                auto *carry_outFalse = irb.CreateICmpNE(irb.CreateLShr(op1, irb.CreateSub(first6Bits, constInt<1>(first6Bits))), constInt<0>(op1));
                 auto *carry_out = irb.CreateSelect(cond, carry_outTrue, carry_outFalse);
                 storeRegister(TRICORE_REG_CF, carry_out, irb);
             }
@@ -434,14 +422,15 @@ void Capstone2LlvmIrTranslatorTricore::translate8B(cs_insn* i, cs_tricore* t, ll
 
                 case 0x04: //result = D[a] + sign_ext(const9); D[c] = result[31:0]; carry_out = carry(D[a],sign_ext(const9),0);
                     v = irb.CreateAdd(op1, op2);
-                    storeCarry(v, irb);
+                    genCarry(v, irb);
                     break;
 
                 case 0x05: //result = D[a] + sign_ext(const9) + PSW.C; D[c] = result[31:0]; carry_out = carry(D[a],sign_ext(const9),PSW.C);
-                    v = irb.CreateAdd(irb.CreateAdd(op1, op2), irb.CreateZExt(getRegister(TRICORE_REG_CF), op1->getType()));
-                    storeCarry(v, irb);
+                {
+                    v = irb.CreateAdd(irb.CreateAdd(op1, op2), irb.CreateZExt(loadRegister(TRICORE_REG_CF, irb), op1->getType()));
+                    genCarry(v, irb);
                     break;
-
+                }
                 case 0x08: //result = sign_ext(const9) - D[a]; D[c] = result[31:0];
                     v = irb.CreateSub(op2, op1);
                     break;
@@ -626,8 +615,31 @@ void Capstone2LlvmIrTranslatorTricore::translateDiv(cs_insn* i, cs_tricore* t, l
     switch (i->id) {
         case TRICORE_INS_DIV:
             switch (t->op2) {
+                case 0x05:
+                    /*
+                    arg_a = denorm_to_zero(f_real(D[a]);
+                    arg_b = denorm_to_zero(f_real(D[b]);
+                    if(is_nan(D[a]) OR is_nan(D[b])) then result = QUIET_NAN;
+                    else if(is_inf(D[a]) AND is_inf(D[b])) then result = DIV_NAN;
+                    else if(is_zero(D[a]) AND is_zero(D[b])) then result = DIV_NAN;
+                    else {
+                    precise_result = divide(arg_a,arg_b);
+                    normal_result = denorm_to_zero(precise_result);
+                    rounded_result = ieee754_round(normal_result, PSW.RM);
+                    result = ieee754_32bit_format(rounded_result);
+                    }
+                    D[c] = result[31:0];
+
+                    Divides the contents of data register D[a] by the contents of data register D[b] and put the result in data register D[c].
+                    */
+                    storeOp(t->operands[0], irb.CreateUDiv(op1, op2), irb);
+                    break;
+
                 case 0x0A: //E[c] = {00000000H , D[a]};
                     storeOp(t->operands[0], irb.CreateZExt(op1, op0->getType()), irb);
+                    break;
+
+                case 0x14: // rounded_result = ieee754_round(i_real(D[a]), PSW.RM); result = ieee754_32bit_format(rounded_result); D[c] = result[31:0];
                     break;
 
                 case 0x1A: //DVINITE E[c] = sign_ext(D[a]);
@@ -1350,7 +1362,7 @@ void Capstone2LlvmIrTranslatorTricore::translateStore(cs_insn* i, cs_tricore* t,
     storeOp(t->operands[0], ld<1>(t, irb), irb);
 
     if (pinc) {
-        storeRegister(t->operands[0].reg, irb.CreateAdd(ld<0>(t, irb), pinc), irb);
+        storeRegister(t->operands[0].reg, irb.CreateAdd(loadRegister(t->operands[0].reg, irb, t->operands[0].extended), pinc), irb);
     }
 }
 
@@ -1580,12 +1592,12 @@ void Capstone2LlvmIrTranslatorTricore::translate0B(cs_insn* i, cs_tricore* t, ll
 
         case 0x04: //result = D[a] + D[b]; D[c] = result[31:0]; carry_out = carry(D[a],D[b],0);
             v = irb.CreateAdd(op1, op2);
-            storeCarry(v, irb);
+            genCarry(v, irb);
             break;
 
         case 0x05: //result = D[a] + D[b] + PSW.C; D[c] = result[31:0]; carry_out = carry(D[a], D[b], PSW.C);
-            v = irb.CreateAdd(irb.CreateAdd(op1, op2), irb.CreateZExt(getRegister(TRICORE_REG_CF), op1->getType()));
-            storeCarry(v, irb);
+            v = irb.CreateAdd(irb.CreateAdd(op1, op2), irb.CreateZExt(loadRegister(TRICORE_REG_CF, irb), op1->getType()));
+            genCarry(v, irb);
             break;
 
         case 0x08: //SUBD result = D[a] - D[b]; D[c] = result[31:0];
@@ -1595,12 +1607,12 @@ void Capstone2LlvmIrTranslatorTricore::translate0B(cs_insn* i, cs_tricore* t, ll
 
         case 0x0C: //result = D[a] - D[b]; D[c] = result[31:0]; carry_out = carry(D[a],~D[b],1);
             v = irb.CreateSub(op1, op2);
-            storeCarry(irb.CreateAdd(v, constInt<1>(v)), irb);
+            genCarry(irb.CreateAdd(v, constInt<1>(v)), irb);
             break;
 
         case 0x0D: //result = D[a] - D[b] + PSW.C - 1; D[c] = result[31:0]; carry_out = carry(D[a],~D[b],PSW.C);
-            v = irb.CreateSub(irb.CreateAdd(irb.CreateSub(op1, op2), irb.CreateZExt(getRegister(TRICORE_REG_CF), op1->getType())), constInt<1>(op1));
-            storeCarry(v, irb);
+            v = irb.CreateSub(irb.CreateAdd(irb.CreateSub(op1, op2), irb.CreateZExt(loadRegister(TRICORE_REG_CF, irb), op1->getType())), constInt<1>(op1));
+            genCarry(v, irb);
             break;
 
         case 0x10: //result = (D[a] == D[b]); D[c] = zero_ext(result);

@@ -205,6 +205,12 @@ void Capstone2LlvmIrTranslatorTricore::generateDataLayout() {
 }
 
 void Capstone2LlvmIrTranslatorTricore::generateRegisters() {
+    createRegister(TRICORE_REG_CF, _regLt);
+    createRegister(TRICORE_REG_OF, _regLt);
+    createRegister(TRICORE_REG_SOF, _regLt);
+    createRegister(TRICORE_REG_AOF, _regLt);
+    createRegister(TRICORE_REG_SAOF, _regLt);
+
     createRegister(TRICORE_REG_PSW, _regLt);
     createRegister(TRICORE_REG_PCXI_PCX, _regLt);
     createRegister(TRICORE_REG_PC, _regLt);

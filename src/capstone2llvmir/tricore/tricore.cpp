@@ -314,7 +314,10 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
 
     auto* llvmReg = getRegister(r);
     auto* regT = getRegisterType(r);
-    assert(llvmReg != nullptr && "storeRegister() unhandled reg.");
+
+    if (llvmReg == nullptr) {
+        assert(llvmReg != nullptr && "storeRegister() unhandled reg.");
+    }
 
     if (val->getType() != llvmReg->getValueType()) {
 
@@ -333,6 +336,8 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
                     break;
 
                 default:
+                    llvmReg->getValueType()->dump();
+                    val->getType()->dump();
                     assert(false && "Unhandled eOpConv type.");
             }
         }
@@ -356,12 +361,8 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
     return irb.CreateStore(val, llvmReg);
 }
 
-void Capstone2LlvmIrTranslatorTricore::storeCarry(llvm::Value* v, llvm::IRBuilder< llvm::ConstantFolder >& irb) {
-    auto *carry_out = irb.CreateSelect(
-        irb.CreateICmpNE(irb.CreateAnd(v, 0x80000000), constInt<0>(v)),
-        constInt<1>(getRegister(TRICORE_REG_CF)),
-        constInt<0>(getRegister(TRICORE_REG_CF)));
-    storeRegister(TRICORE_REG_CF, carry_out, irb);
+void Capstone2LlvmIrTranslatorTricore::genCarry(llvm::Value *v, llvm::IRBuilder<llvm::ConstantFolder> &irb) {
+    storeRegister(TRICORE_REG_CF, irb.CreateICmpNE(irb.CreateAnd(v, 0x80000000), constInt<0>(v)), irb);
 }
 
 llvm::CallInst* Capstone2LlvmIrTranslatorTricore::generateBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative) {
@@ -535,6 +536,7 @@ llvm::IntegerType* Capstone2LlvmIrTranslatorTricore::getType(uint8_t bitSize) {
         case 32: return llvm::Type::getInt32Ty(_module->getContext());
         case 16: return llvm::Type::getInt16Ty(_module->getContext());
         case 8: return llvm::Type::getInt8Ty(_module->getContext());
+        case 1: return llvm::Type::getInt1Ty(_module->getContext());
         default: return llvm::Type::getIntNTy(_module->getContext(), bitSize);
     }
 }

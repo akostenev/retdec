@@ -75,7 +75,8 @@ protected:
         } else {
             return llvm::ConstantInt::get(t->getType(), N);
         }
-    }
+    };
+
     llvm::IntegerType* getType(uint8_t bitSize = 32);
 
     template<std::size_t N>
@@ -92,7 +93,7 @@ protected:
     llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb, bool extended = false);
     llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::THROW, bool extended = false);
 
-    void storeCarry(llvm::Value* v, llvm::IRBuilder<>& irb);
+    void genCarry(llvm::Value* v, llvm::IRBuilder<>& irb);
 
 protected:
     static std::map<std::size_t, void (Capstone2LlvmIrTranslatorTricore::*)(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>&)> _i2fm;

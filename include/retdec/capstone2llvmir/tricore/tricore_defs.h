@@ -16,13 +16,14 @@ typedef enum tricore_reg {
     TRICORE_REG_INVALID = 0,
     TRICORE_REG_ZERO, //Zero Reg
 
-    //PSW and flags in PSW
-    TRICORE_REG_PSW = 0xfe04, //Program Status Word Register
+    //Flags in PSW
     TRICORE_REG_CF, //Carry
     TRICORE_REG_OF, //Overflow
     TRICORE_REG_SOF, //Sticky overflow
     TRICORE_REG_AOF, //Advance Overflow
     TRICORE_REG_SAOF, //Sticky Advance Overflow
+
+    TRICORE_REG_PSW = 0xfe04, //Program Status Word Register
 
     //(CSFR)
     TRICORE_REG_PCXI_PCX = 0xfe00, // Previous Context Information and Pointer Register

@@ -1570,7 +1570,7 @@ LOG << "===========> SWITCH MODE #2 " << _currentMode << " -> " << jt.mode << st
 //                                             std::hex << imm << std::endl;
 //                             }
 //                     }
-// 
+//
 //                 for (auto ai = first; ; ai = ai.getNext())
 //                 {
 //                         if (tRes.branchCall != nullptr)
