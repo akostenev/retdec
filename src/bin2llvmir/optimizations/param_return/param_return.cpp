@@ -1814,7 +1814,7 @@ void DataFlowEntry::applyToIrVariadic()
 	}
 	else if (_config->getConfig().architecture.isTricore())
         {
-                retVal = _config->getLlvmRegister("d2"); //TODO check
+                retVal = getTricoreReturnValue();
         }
 	if (retVal)
 	{
