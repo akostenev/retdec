@@ -749,10 +749,6 @@ void dismABS(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             }
             break;
 
-//         case 0xE5: // EA = {off18[17:14], 14b'0, off18[13:0]};  M(EA, word) = (M(EA, word) & ~E[a][63:32]) | (E[a][31:0] & E[a][63:32])
-//         case 0x15: // EA = {off18[17:14], 14b'0, off18[13:0]};  {dummy, dummy, A[10:11], D[8:11], A[12:15], D[12:15]} = M(EA, 16-word);
-//         case 0x45: // EA = {off18[17:14], 14b'0, off18[13:0]};  D[a] = {M(EA, halfword), 16’h0000};
-
         default:
             assert(false && TRICORE_OF_ABS);
     }
@@ -788,10 +784,6 @@ void dismB(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
     auto disp24 = bitRange<8, 15>(b) << 16 | bitRange<16, 31>(b);
 
     switch (i->id) {
-//         case 0x6D:
-//         case 0xED:
-//         case 0x61: //ret_addr = PC + 4; EA = A[10] - 4; M(EA,word) = A[11]; PC = PC + sign_ext(2 * disp24); A[11] = ret_addr[31:0]; A[10] = EA[31:0];
-//         case 0xE1: //ret_addr = PC + 4; EA = A[10] - 4; M(EA,word) = A[11]; PC = {disp24[23:20], 7'b0, disp24[19:0], 1'b0}; A[11] = ret_addr[31:0]; A[10] = EA[31:0]
         case TRICORE_INS_J32: //PC = PC + sign_ext(disp24) * 2;
         case TRICORE_INS_JL: //A[11] = PC + 4; PC = PC + sign_ext(disp24) * 2;
             t->operands[0] = sExtImm<24>(disp24, 2);
@@ -2056,17 +2048,15 @@ cs_tricore::cs_tricore(cs_insn* i) : op2(0), n(0) {
 
     auto fInsToDism = insToDism.find(i->id);
     if (fInsToDism == std::end(insToDism)) {
+        std::cout << "Disassemble of unhandled instruction: " << i->id << " @ " << std::hex << i->address << std::endl;
+        if (i->size == 4) {
+            std::cout << static_cast<unsigned>(i->bytes[3]) << " " << static_cast<unsigned>(i->bytes[2]) << " " << static_cast<unsigned>(i->bytes[1]) << " " << static_cast<unsigned>(i->bytes[0]) << std::endl;
+        } else if (i->size == 2) {
+            std::cout << static_cast<unsigned>(i->bytes[1]) << " " << static_cast<unsigned>(i->bytes[0]) << std::endl;
+        }
 
-
-    std::cout << "Translation of unhandled instruction: " << i->id << " @ " << std::hex << i->address << std::endl;
-    if (i->size == 4) {
-        std::cout << static_cast<unsigned>(i->bytes[3]) << " " << static_cast<unsigned>(i->bytes[2]) << " " << static_cast<unsigned>(i->bytes[1]) << " " << static_cast<unsigned>(i->bytes[0]) << std::endl;
-    } else if (i->size == 2) {
-        std::cout << static_cast<unsigned>(i->bytes[1]) << " " << static_cast<unsigned>(i->bytes[0]) << std::endl;
-    }
-
-    assert(false && "Unknown Tricore Instruction");
+        assert(false && "Unknown Tricore Instruction");
     } else {
-    fInsToDism->second(this, i, b);
+        fInsToDism->second(this, i, b);
     }
 }

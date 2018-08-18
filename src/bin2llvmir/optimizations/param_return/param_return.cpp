@@ -27,6 +27,7 @@
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/CFG.h>
 
 #include "retdec/utils/container.h"
 #include "retdec/utils/string.h"
@@ -2297,37 +2298,27 @@ void DataFlowEntry::setArgumentTypes()
 
 Value* DataFlowEntry::getTricoreReturnValue() {
     if (Function* fnc = getFunction()) {
-        bool lastOneIsD2 = true; //retValue is either a2 or d2,
-        for (BasicBlock& bb : fnc->getBasicBlockList()) { //so search in
 
-            bool foundRet = false;
-            for (Instruction& ins: bb.getInstList()) { //all instruction
+        for (BasicBlock& bb : fnc->getBasicBlockList()) { //Iterate over all BasicBlocks
+            if (dyn_cast<ReturnInst>(bb.getTerminator())) { //Find the Return Inst
 
-                if (dyn_cast<ReturnInst>(&ins)) {//to find the return basic block
-                    foundRet = true;
-                    break;
-                }
-            }
-
-            if (foundRet) {
-                for (Instruction& ins : bb.getInstList()) {
-                    if (StoreInst* si = dyn_cast<StoreInst>(&ins)) { //find last usage of a2 or d2 //TODO other instructions ?
-                        for (unsigned int i = 0, n = si->getNumOperands(); i < n; i++) {
-                            if (si->getOperand(i) == _config->getLlvmRegister("d2")) {
-                                lastOneIsD2 = true;
-                            } else if (si->getOperand(i) == _config->getLlvmRegister("a2")) {
-                                lastOneIsD2 = false;
-                            }
+                for (auto it = bb.getInstList().rbegin(), end = bb.getInstList().rend(); it != end; ++it) { // reverse iterate over all Instructions
+                    if (StoreInst *SI = dyn_cast<StoreInst>(&*it)) { // Get the last store of d2, a2, e2, p2
+                        if (SI->getPointerOperand() == _config->getLlvmRegister("d2")) {
+                            return _config->getLlvmRegister("d2");
+                        } else if (SI->getPointerOperand() == _config->getLlvmRegister("a2")) {
+                            return _config->getLlvmRegister("a2");
+                        } else if (SI->getPointerOperand() == _config->getLlvmRegister("e2")) { //TODO verify
+                            return _config->getLlvmRegister("p2");
+                        } else if (SI->getPointerOperand() == _config->getLlvmRegister("p2")) { //TODO verify
+                            return _config->getLlvmRegister("e2");
                         }
                     }
                 }
-
-                return lastOneIsD2 ? _config->getLlvmRegister("d2") : _config->getLlvmRegister("a2"); //and use it
-                //even if there are multiply ReturnBB, there should be only one used return register
             }
         }
     }
-    return _config->getLlvmRegister("d2");
+    return _config->getLlvmRegister("d2"); // default return d2
 }
 
 } // namespace bin2llvmir

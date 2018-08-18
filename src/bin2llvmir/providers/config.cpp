@@ -477,7 +477,7 @@ bool Config::isGeneralPurposeRegister(const llvm::Value* val)
             auto rn = r->getStorage().getRegisterNumber();
             return (0xff00 <= rn && rn <= 0xff00 + 15 * 4) //D
                 || (0xff80 <= rn && rn <= 0xff80 + 15 * 4) //A
-                || rn > 0x100000;
+                || rn > 0x100000; //E, P
         }
 	else
 	{

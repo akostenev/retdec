@@ -386,11 +386,6 @@ typedef enum tricore_insn {
     TRICORE_INS_NOP = 0x00,
     TRICORE_INS_RET = 0x00,
 
-    // _A := address
-    // _c := constant
-    // _r := register
-    // _z := zero extend
-
     TRICORE_INS_ADD16 = 0x12,
     TRICORE_INS_ADD16_SSOV = 0x22,
     TRICORE_INS_ADD16_AA = 0x30,
