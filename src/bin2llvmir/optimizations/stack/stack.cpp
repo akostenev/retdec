@@ -288,7 +288,8 @@ bool StackAnalysis::handleInstruction(
 				(l->getPointerOperand()->getName() != "esp"
 						&& l->getPointerOperand()->getName() != "rsp"
 						&& (!(l->getPointerOperand()->getName() == "r1" && arch.isPpc()))
-						&& l->getPointerOperand()->getName() != "sp"))
+						&& l->getPointerOperand()->getName() != "sp"
+                                                && arch.isTricore() && l->getPointerOperand()->getName() != "a10"))
 		{
 			continue;
 		}

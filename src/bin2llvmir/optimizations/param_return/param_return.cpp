@@ -318,7 +318,7 @@ bool registerCanBeParameterAccordingToAbi(Config* _config, llvm::Value* val)
         {
                 static std::set<std::string> names =
                     {
-                        "a4", "a5", "a6", "a7",
+                        "a4", "a5", "a6", "a7", "p4", "p6",
                         "d4", "d5", "d6", "d7", "e4", "e6",
                     };
                 if (names.find(val->getName()) == names.end())
@@ -2257,7 +2257,7 @@ void DataFlowEntry::setReturnType()
 	{
 		retVal = _config->getLlvmRegister("r3");
 	}
-        else if (_config->getConfig().architecture.isTricore()) //TODO check
+        else if (_config->getConfig().architecture.isTricore())
         {
                 retVal = getTricoreReturnValue();
         }
