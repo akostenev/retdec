@@ -23,6 +23,9 @@ class TricoreLoad : public llvm::ModulePass
         private:
                 long unsigned int getValOnPos(long base, long disp, unsigned size = 4);
 
+                long int baseA9;
+                long int baseA1;
+
                 Config* config = nullptr;
                 std::ifstream Input;
 };
