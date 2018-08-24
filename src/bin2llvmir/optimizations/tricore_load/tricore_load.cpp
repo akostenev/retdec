@@ -63,6 +63,7 @@ void TricoreLoad::getAnalysisUsage(AnalysisUsage &AU) const
  *         @c False otherwise.
  */
 bool TricoreLoad::runOnModule(Module& M) {
+//     return false;
     if (!ConfigProvider::getConfig(&M, config))
     {
             LOG << "[ABORT] config file is not available\n";
@@ -211,13 +212,38 @@ bool TricoreLoad::runOnModule(Module& M) {
                                     //find store i32 %13, i32* @d15, align 4  --> d15 = *a15
                                     for (auto *UU : li->users()) //%11 = inttoptr i32 %10 to i16*
                                     for (auto *UUU : UU->users()) { //%12 = load i16, i16* %11, align 2
-                                        if (LoadInst* li = dyn_cast<LoadInst>(UUU)) {
+                                        if (LoadInst* LI = dyn_cast<LoadInst>(UUU)) {
                                             auto X = cast<ConstantInt>((*(fAddDispSecondDim->second.begin())->second.begin())->getOperand(1))->getSExtValue();
                                             auto Y = cast<ConstantInt>(inst->getOperand(1))->getSExtValue();
-                                            long unsigned int a9XYval = getValOnPos(getValOnPos(baseA9, X, 4), Y, li->getType()->getIntegerBitWidth() / 8);
+                                            long unsigned int a9XYval = getValOnPos(getValOnPos(baseA9, X, 4), Y, LI->getType()->getIntegerBitWidth() / 8);
 
                                             std::cout << "Replace load a9[" << std::dec << X << "][" << std::dec << Y << "] with ConstInt: 0x" << std::hex << a9XYval << std::endl;
-                                            li->replaceAllUsesWith(ConstantInt::get(li->getType(), a9XYval));
+//                                             LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a9XYval));
+
+                                            for (auto *UUUU : LI->users()) {
+                                                if (SExtInst *SE = dyn_cast<SExtInst>(UUUU)) {
+//                                                     SE->replaceAllUsesWith(ConstantInt::get(SE->getType(), a9XYval));
+
+                                                    for (auto *UUUUU : SE->users()) {
+                                                        if (StoreInst *SI = dyn_cast<StoreInst>(UUUUU)) {
+                                                            SI->setOperand(0, ConstantInt::get(SE->getType(), a9XYval));
+                                                            SI->setVolatile(true);
+                                                            break;
+                                                        }
+                                                    }
+
+                                                } else if (ZExtInst *ZE = dyn_cast<ZExtInst>(UUUU)) {
+//                                                     ZE->replaceAllUsesWith(ConstantInt::get(ZE->getType(), a9XYval));
+
+                                                     for (auto *UUUUU : ZE->users()) {
+                                                        if (StoreInst *SI = dyn_cast<StoreInst>(UUUUU)) {
+                                                            SI->setOperand(0, ConstantInt::get(ZE->getType(), a9XYval));
+                                                            SI->setVolatile(true);
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                     break; //found first matching add disp instruction, we can stop searching
@@ -285,7 +311,14 @@ bool TricoreLoad::runOnModule(Module& M) {
                                             long unsigned int a1Xval = getValOnPos(baseA1, X, LI->getType()->getIntegerBitWidth() / 8);
 
                                             std::cout << "Replace load a1[" << std::dec << X << "] with ConstInt: 0x" << std::hex << a1Xval << std::endl;
-                                            LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a1Xval));
+//                                             LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a1Xval));
+
+                                            for (auto *UUUU : LI->users()) {
+                                                if (StoreInst *SI = dyn_cast<StoreInst>(UUUU)) {
+                                                    SI->setOperand(0, ConstantInt::get(LI->getType(), a1Xval));
+                                                    SI->setVolatile(true);
+                                                }
+                                            }
                                         }
                                     }
 
@@ -299,7 +332,9 @@ bool TricoreLoad::runOnModule(Module& M) {
         }
     }
 
-	return foundA1 || foundA9;
+    dumpModuleToFile(&M);
+
+    return foundA1 || foundA9;
 }
 
 long unsigned int TricoreLoad::getValOnPos(long base, long disp, unsigned int size) {
