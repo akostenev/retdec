@@ -271,7 +271,9 @@ cs_insn* AsmInstruction::getCapstoneInsn() const
 		auto* ms = cast<ConstantAsMetadata>(m->getOperand(0));
 		auto* ci = cast<ConstantInt>(ms->getValue());
 		i = reinterpret_cast<cs_insn*>(ci->getZExtValue());
-	} else if (auto* m = _llvmToAsmInstr->getMetadata("asm-tricore")) {
+	}
+	else if (auto* m = _llvmToAsmInstr->getMetadata("asm-tricore"))
+        {
                 i = new cs_insn();
 
                 auto* mAddr = cast<ConstantAsMetadata>(m->getOperand(0));
@@ -289,14 +291,6 @@ cs_insn* AsmInstruction::getCapstoneInsn() const
                 i->id = i->bytes[0];
 
                 i->size = i->bytes[0] & 1 ? 4 : 2;
-                i->op_str[0] = 't';
-                i->op_str[1] = 'r';
-                i->op_str[2] = 'i';
-                i->op_str[3] = 'c';
-                i->op_str[4] = 'o';
-                i->op_str[5] = 'r';
-                i->op_str[6] = 'e';
-                i->op_str[7] = '\0';
         }
 
 	return i;

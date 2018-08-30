@@ -14,7 +14,7 @@
 #include "retdec/bin2llvmir/optimizations/control_flow/control_flow.h"
 #include "retdec/bin2llvmir/utils/type.h"
 
-#define debug_enabled true
+#define debug_enabled false
 #include "retdec/llvm-support/utils.h"
 
 using namespace retdec::llvm_support;
@@ -94,14 +94,6 @@ bool ControlFlow::runTricoreCall(AsmInstruction& ai) {
             {
                     addr = ci->getZExtValue();
             }
-            // we can do it here:
-            // bugs.799.x86_elf_8e2d7ac57bded5f52a6b5cd6d769da31
-            // LOAD:0804812E                 call    off_8049398
-            //
-            // we can not do it always:
-            // ackermann.x86.gcc-4.7.2.O0.g.elf
-            // LOAD:0804812E                 call    off_8049398
-            //
             else if (auto* l = dyn_cast<LoadInst>(op))
             {
                     auto* pop = skipCasts(l->getPointerOperand());
@@ -133,9 +125,6 @@ bool ControlFlow::runTricoreCall(AsmInstruction& ai) {
 
             if (addr.isUndefined())
             {
-                    // TODO -- call variable
-                    // 1.) if RDA available, try to compute it.
-                    // 2.) if not computed, transform to call of variable.
                     continue;
             }
 

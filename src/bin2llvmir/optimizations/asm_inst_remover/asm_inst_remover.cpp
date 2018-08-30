@@ -84,9 +84,12 @@ bool AsmInstructionRemover::run(Module& M)
 				AsmInstruction ai(inst);
 				if (cs_insn* insn = ai.getCapstoneInsn())
 				{
-                                        if (std::string(insn->op_str) == "tricore") {
+                                        if (_config->getConfig().architecture.isTricore())
+                                        {
                                                 delete insn;
-                                        } else {
+                                        }
+                                        else
+                                        {
                                                 cs_free(insn, 1);
                                         }
 				}

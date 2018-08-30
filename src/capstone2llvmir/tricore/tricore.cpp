@@ -29,11 +29,10 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
     }
 
     /**
-     * Build tricore2capstone (light)
+     * Build instructions and translate them
      */
     for (auto it = std::begin(bytes), end = std::end(bytes); it != end; ) {
         cs_insn i;
-        i.id = (*it); // op1
         i.address = address;
 
         if ((*it) & 1) { // 32-Bit instruction
@@ -41,17 +40,14 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
             i.bytes[0] = *it++;
             if (it == end) {
                 return res;
-//                 assert(false);
             }
             i.bytes[1] = *it++;
             if (it == end) {
                 return res;
-//                 assert(false);
             }
             i.bytes[2] = *it++;
             if (it == end) {
                 return res;
-//                 assert(false);
             }
             i.bytes[3] = *it++;
         } else { // 16-bit instruction
@@ -59,7 +55,6 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
             i.bytes[0] = *it++;
             if (it == end) {
                 return res;
-//                 assert(false);
             }
             i.bytes[1] = *it++;
             i.bytes[2] = 0;
@@ -70,12 +65,11 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
 
         auto* a2l = generateSpecialAsm2LlvmInstr(irb, &i);
         if (res.first == nullptr) {
-                res.first = a2l;
+            res.first = a2l;
         }
         res.last = a2l;
         res.size = (i.address + i.size) - a;
 
-        // and translate it
         translateInstruction(&i, irb);
 
         if (_branchGenerated && stopOnBranch) {
@@ -83,7 +77,6 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
             res.inCondition = _inCondition;
             return res;
         }
-
     }
 
     return res;
@@ -92,7 +85,7 @@ Capstone2LlvmIrTranslator::TranslationResult Capstone2LlvmIrTranslatorTricore::t
 void Capstone2LlvmIrTranslatorTricore::translateInstruction(cs_insn* i, llvm::IRBuilder<>& irb) {
     _insn = i;
 
-    cs_tricore t(i); // dism to capstone-tricore
+    cs_tricore t(i); // disassemble with Tricore2Captstone
 
     auto fIt = _i2fm.find(i->id);
     if (fIt != _i2fm.end() && fIt->second != nullptr) {
@@ -355,7 +348,6 @@ llvm::StoreInst* Capstone2LlvmIrTranslatorTricore::storeRegister(uint32_t r, llv
 
         irb.CreateStore(lVal, lReg);
         irb.CreateStore(hVal, hReg);
-
     }
 
     return irb.CreateStore(val, llvmReg);

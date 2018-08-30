@@ -1157,6 +1157,10 @@ void DataFlowEntry::callsFilterCommonRegisters()
 		{
 			regNames = {"r3", "r4", "r5", "r6", "r7", "r8", "r9"};
 		}
+		else if (_config->getConfig().architecture.isTricore())
+                {
+                        regNames = {"d4", "d5", "d6", "d7", "a4", "a5", "a6", "a7",};
+                }
 	}
 	for (auto it = regNames.rbegin(); it != regNames.rend(); ++it)
 	{
@@ -1333,7 +1337,7 @@ void DataFlowEntry::applyToIrOrdinary()
 		}
 		else if (_config->getConfig().architecture.isTricore())
                 {
-                        retVal = getTricoreReturnValue();
+                        retVal = getTricoreReturnValue().first; //TODO update retType?
                 }
 		if (retVal)
 		{
@@ -1364,7 +1368,7 @@ void DataFlowEntry::applyToIrOrdinary()
 		static std::vector<std::string> mipsNames =
 				{"a0", "a1", "a2", "a3"};
                 static std::vector<std::string> tricoreNames =
-                                {"d4", "d5", "d6", "d7"};
+                                {"d4", "d5", "d6", "d7", "a4", "a5", "a6", "a7"};
 		if (_config->getConfig().tools.isPspGcc())
 		{
 			mipsNames = {"a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3"};
@@ -1731,7 +1735,6 @@ void DataFlowEntry::applyToIrVariadic()
                         else if (_config->getConfig().architecture.isTricore()) //TODO check
                         {
                                 bool useStack = false;
-
                                 if (aIdx < tricoreNames.size()) {
                                     auto* r = _module->getNamedGlobal(tricoreNames[aIdx]);
                                     if (r)
@@ -1814,7 +1817,7 @@ void DataFlowEntry::applyToIrVariadic()
 	}
 	else if (_config->getConfig().architecture.isTricore())
         {
-                retVal = getTricoreReturnValue();
+                retVal = getTricoreReturnValue().first; //TODO update ret type?
         }
 	if (retVal)
 	{
@@ -2259,7 +2262,10 @@ void DataFlowEntry::setReturnType()
 	}
         else if (_config->getConfig().architecture.isTricore())
         {
-                retVal = getTricoreReturnValue();
+                auto rv = getTricoreReturnValue();
+                retVal = rv.first;
+                retType = rv.second;
+                return;
         }
 
 	retType = retVal ?
@@ -2296,29 +2302,30 @@ void DataFlowEntry::setArgumentTypes()
 	}
 }
 
-Value* DataFlowEntry::getTricoreReturnValue() {
-    if (Function* fnc = getFunction()) {
+std::pair<Value*, Type*> DataFlowEntry::getTricoreReturnValue() {
+    Function* fnc = getFunction();
+    for (BasicBlock &bb : fnc->getBasicBlockList()) { //Iterate over all BasicBlocks
+        if (dyn_cast<ReturnInst>(bb.getTerminator())) { //Find the Return Inst
 
-        for (BasicBlock& bb : fnc->getBasicBlockList()) { //Iterate over all BasicBlocks
-            if (dyn_cast<ReturnInst>(bb.getTerminator())) { //Find the Return Inst
+            for (auto it = bb.getInstList().rbegin(), end = bb.getInstList().rend(); it != end; ++it) { // reverse iterate over all Instructions
+                if (StoreInst *SI = dyn_cast<StoreInst>(&*it)) { // Get the last store of d2, a2, e2, p2
+                    if (SI->getPointerOperand() == _config->getLlvmRegister("d2")) {
+                        return std::make_pair(_config->getLlvmRegister("d2"), llvm::Type::getInt32Ty(fnc->getContext()));
 
-                for (auto it = bb.getInstList().rbegin(), end = bb.getInstList().rend(); it != end; ++it) { // reverse iterate over all Instructions
-                    if (StoreInst *SI = dyn_cast<StoreInst>(&*it)) { // Get the last store of d2, a2, e2, p2
-                        if (SI->getPointerOperand() == _config->getLlvmRegister("d2")) {
-                            return _config->getLlvmRegister("d2");
-                        } else if (SI->getPointerOperand() == _config->getLlvmRegister("a2")) {
-                            return _config->getLlvmRegister("a2");
-                        } else if (SI->getPointerOperand() == _config->getLlvmRegister("e2")) { //TODO verify
-                            return _config->getLlvmRegister("p2");
-                        } else if (SI->getPointerOperand() == _config->getLlvmRegister("p2")) { //TODO verify
-                            return _config->getLlvmRegister("e2");
-                        }
+                    } else if (SI->getPointerOperand() == _config->getLlvmRegister("a2")) {
+                        return std::make_pair(_config->getLlvmRegister("a2"), llvm::Type::getInt32PtrTy(fnc->getContext()));
+
+                    } else if (SI->getPointerOperand() == _config->getLlvmRegister("e2")) { //TODO verify
+                        return std::make_pair(_config->getLlvmRegister("e2"), llvm::Type::getInt64Ty(fnc->getContext()));
+
+                    } else if (SI->getPointerOperand() == _config->getLlvmRegister("p2")) { //TODO verify
+                        return std::make_pair(_config->getLlvmRegister("p2"), llvm::Type::getInt64PtrTy(fnc->getContext()));
                     }
                 }
             }
         }
     }
-    return _config->getLlvmRegister("d2"); // default return d2
+    return std::make_pair(_config->getLlvmRegister("d2"), llvm::Type::getInt32Ty(fnc->getContext())); // default return d2
 }
 
 } // namespace bin2llvmir

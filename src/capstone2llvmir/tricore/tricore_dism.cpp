@@ -2040,6 +2040,8 @@ bool isBrrnFormat(unsigned int ins) {
 cs_tricore::cs_tricore(cs_insn* i) : op2(0), n(0) {
     std::bitset<64> b = i->size == 4 ? i->bytes[3] << 24 | i->bytes[2] << 16 | i->bytes[1] << 8 | i->bytes[0] : i->bytes[1] << 8 | i->bytes[0];
 
+    // update the id = op1
+    i->id = i->bytes[0]; // default sizeof(op1) == 1 Byte
     if (isSrrsFormat(i->id)) { //Check if SRRS op format
         i->id = i->id & SRRSMASK;
     } else if (isBrrnFormat(i->id)) { //Check if BRRN op format

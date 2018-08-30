@@ -99,7 +99,7 @@ class DataFlowEntry
 		void filterRegistersArgLoads();
 		void filterSortArgLoads();
 
-                llvm::Value* getTricoreReturnValue();
+                std::pair<llvm::Value*, llvm::Type*> getTricoreReturnValue();
 
 		llvm::CallInst* isSimpleWrapper(llvm::Function* fnc);
 
