@@ -200,13 +200,27 @@ bool TricoreLoad::runOnModule(Module& M) {
                                         break; // false positive
                                     }
 
+                                    uint64_t X, Y;
+                                    if (ConstantInt *CX = dyn_cast<ConstantInt>((*(fAddDispSecondDim->second.begin())->second.begin())->getOperand(1))) {
+                                        X = CX->getZExtValue();
+                                    } else {
+//                                         (*(fAddDispSecondDim->second.begin())->second.begin())->getOperand(1)->dump();
+                                        break; // false positive
+                                    }
+
+                                    if (ConstantInt *CY = dyn_cast<ConstantInt>(inst->getOperand(1))) {
+                                        Y = CY->getZExtValue();
+                                    } else {
+//                                         inst->getOperand(1)->dump();
+                                        break; // false positive
+                                    }
+                                    auto ptrX = getValOnPos(baseA9, X, 4);
+
                                     //find store i32 %13, i32* @d15, align 4  --> d15 = *a15
                                     for (auto *UU : li->users()) //%11 = inttoptr i32 %10 to i16*
                                     for (auto *UUU : UU->users()) { //%12 = load i16, i16* %11, align 2
                                         if (LoadInst* LI = dyn_cast<LoadInst>(UUU)) {
-                                            auto X = cast<ConstantInt>((*(fAddDispSecondDim->second.begin())->second.begin())->getOperand(1))->getSExtValue();
-                                            auto Y = cast<ConstantInt>(inst->getOperand(1))->getSExtValue();
-                                            long unsigned int a9XYval = getValOnPos(getValOnPos(baseA9, X, 4), Y, LI->getType()->getIntegerBitWidth() / 8);
+                                            long unsigned int a9XYval = getValOnPos(ptrX, Y, LI->getType()->getIntegerBitWidth() / 8);
 
                                             std::cout << "Replace load a9[" << std::dec << X << "][" << std::dec << Y << "] with ConstInt: 0x" << std::hex << a9XYval << std::endl;
                                             LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a9XYval));
