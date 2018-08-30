@@ -121,19 +121,12 @@ bool TricoreLoad::runOnModule(Module& M) {
                 foundA9 = true;
                 std::map<Instruction*, std::map<GlobalValue*, std::map<Instruction*, std::set<GlobalValue*>>>> a9; // a9[2088] -> a2, a2[2594]
 
-                std::set<LoadInst*> a9Loads;
                 for (auto *U : l->getPointerOperand()->users()) {
                     if (LoadInst* a9Load = dyn_cast<LoadInst>(U)) {
-                        a9Loads.insert(a9Load);
-                    }
-                }
-
-                for (auto *a9l : a9Loads) { // %3 = add i32 %2, 2088
-                    for (auto *U : a9l->users()) {
-
-                        if (Instruction* addI = dyn_cast<Instruction>(U)) {
-                            if (addI->getOpcode() == Instruction::Add) {
-                                a9.emplace(addI, std::map<GlobalValue*, std::map<Instruction*, std::set<GlobalValue*>>>());
+                        for (auto *U : a9Load->users()) {
+                            if (Instruction* addI = dyn_cast<Instruction>(U))
+                            if (addI->getOpcode() == Instruction::Add) { //// %3 = add i32 %2, 2088
+                                    a9.emplace(addI, std::map<GlobalValue*, std::map<Instruction*, std::set<GlobalValue*>>>());
                             }
                         }
                     }
@@ -144,9 +137,8 @@ bool TricoreLoad::runOnModule(Module& M) {
                 for (auto *UU : U->users())
                 for (auto *UUU : UU->users()) {
                     if (StoreInst* s = dyn_cast<StoreInst>(UUU)) { //store i32 %5, i32* @a2, align 4    --> a2 = a9[2088]
-                        if (GlobalValue* gv = dyn_cast<GlobalValue>(s->getPointerOperand())) {
-                            a9f.second.emplace(gv, std::map<Instruction*, std::set<GlobalValue*>>());
-                        }
+                    if (GlobalValue* gv = dyn_cast<GlobalValue>(s->getPointerOperand()))
+                        a9f.second.emplace(gv, std::map<Instruction*, std::set<GlobalValue*>>());
                     }
                 }
 
@@ -190,10 +182,9 @@ bool TricoreLoad::runOnModule(Module& M) {
                         auto it = li->getParent()->begin();
                         auto end = li->getParent()->end();
                         for (; it != end; ++it) {
-                            if (LoadInst *lIns = dyn_cast<LoadInst>(it)) { //find pos of %10 = load i32, i32* @a15, align 4
-                                if (lIns == li) {
+                            if (LoadInst *lIns = dyn_cast<LoadInst>(it)) //find pos of %10 = load i32, i32* @a15, align 4
+                            if (lIns == li) {
                                     break;
-                                }
                             }
                         }
 
@@ -218,32 +209,32 @@ bool TricoreLoad::runOnModule(Module& M) {
                                             long unsigned int a9XYval = getValOnPos(getValOnPos(baseA9, X, 4), Y, LI->getType()->getIntegerBitWidth() / 8);
 
                                             std::cout << "Replace load a9[" << std::dec << X << "][" << std::dec << Y << "] with ConstInt: 0x" << std::hex << a9XYval << std::endl;
-//                                             LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a9XYval));
+                                            LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a9XYval));
 
-                                            for (auto *UUUU : LI->users()) {
-                                                if (SExtInst *SE = dyn_cast<SExtInst>(UUUU)) {
-//                                                     SE->replaceAllUsesWith(ConstantInt::get(SE->getType(), a9XYval));
-
-                                                    for (auto *UUUUU : SE->users()) {
-                                                        if (StoreInst *SI = dyn_cast<StoreInst>(UUUUU)) {
-                                                            SI->setOperand(0, ConstantInt::get(SE->getType(), a9XYval));
-                                                            SI->setVolatile(true);
-                                                            break;
-                                                        }
-                                                    }
-
-                                                } else if (ZExtInst *ZE = dyn_cast<ZExtInst>(UUUU)) {
-//                                                     ZE->replaceAllUsesWith(ConstantInt::get(ZE->getType(), a9XYval));
-
-                                                     for (auto *UUUUU : ZE->users()) {
-                                                        if (StoreInst *SI = dyn_cast<StoreInst>(UUUUU)) {
-                                                            SI->setOperand(0, ConstantInt::get(ZE->getType(), a9XYval));
-                                                            SI->setVolatile(true);
-                                                            break;
-                                                        }
-                                                    }
-                                                }
-                                            }
+//                                             for (auto *UUUU : LI->users()) {
+//                                                 if (SExtInst *SE = dyn_cast<SExtInst>(UUUU)) {
+// //                                                     SE->replaceAllUsesWith(ConstantInt::get(SE->getType(), a9XYval));
+//
+//                                                     for (auto *UUUUU : SE->users()) {
+//                                                         if (StoreInst *SI = dyn_cast<StoreInst>(UUUUU)) {
+//                                                             SI->setOperand(0, ConstantInt::get(SE->getType(), a9XYval));
+//                                                             SI->setVolatile(true);
+//                                                             break;
+//                                                         }
+//                                                     }
+//
+//                                                 } else if (ZExtInst *ZE = dyn_cast<ZExtInst>(UUUU)) {
+// //                                                     ZE->replaceAllUsesWith(ConstantInt::get(ZE->getType(), a9XYval));
+//
+//                                                      for (auto *UUUUU : ZE->users()) {
+//                                                         if (StoreInst *SI = dyn_cast<StoreInst>(UUUUU)) {
+//                                                             SI->setOperand(0, ConstantInt::get(ZE->getType(), a9XYval));
+//                                                             SI->setVolatile(true);
+//                                                             break;
+//                                                         }
+//                                                     }
+//                                                 }
+//                                             }
                                         }
                                     }
                                     break; //found first matching add disp instruction, we can stop searching
@@ -258,14 +249,12 @@ bool TricoreLoad::runOnModule(Module& M) {
                 std::map<Instruction*, GlobalValue*> a1; // a1[3596] -> a15
 
                 for (auto *U : l->users()) { // %99 = add i32 %98, 3596
-                    if (auto *AddI = dyn_cast<Instruction>(U)) {
-                        if (AddI->getOpcode() == Instruction::Add) {
-                            for (auto *UU : U->users()) { // store i32 %99, i32* @a15, align 4
-                                if (auto *SI = dyn_cast<StoreInst>(UU)) {
-                                    if (auto *GV = dyn_cast<GlobalValue>(SI->getPointerOperand())) {
-                                        a1.emplace(AddI, GV);
-                                    }
-                                }
+                    if (auto *AddI = dyn_cast<Instruction>(U))
+                    if (AddI->getOpcode() == Instruction::Add) {
+                        for (auto *UU : U->users()) { // store i32 %99, i32* @a15, align 4
+                            if (auto *SI = dyn_cast<StoreInst>(UU))
+                            if (auto *GV = dyn_cast<GlobalValue>(SI->getPointerOperand())) {
+                                    a1.emplace(AddI, GV);
                             }
                         }
                     }
@@ -311,14 +300,14 @@ bool TricoreLoad::runOnModule(Module& M) {
                                             long unsigned int a1Xval = getValOnPos(baseA1, X, LI->getType()->getIntegerBitWidth() / 8);
 
                                             std::cout << "Replace load a1[" << std::dec << X << "] with ConstInt: 0x" << std::hex << a1Xval << std::endl;
-//                                             LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a1Xval));
+                                            LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a1Xval));
 
-                                            for (auto *UUUU : LI->users()) {
-                                                if (StoreInst *SI = dyn_cast<StoreInst>(UUUU)) {
-                                                    SI->setOperand(0, ConstantInt::get(LI->getType(), a1Xval));
-                                                    SI->setVolatile(true);
-                                                }
-                                            }
+//                                             for (auto *UUUU : LI->users()) {
+//                                                 if (StoreInst *SI = dyn_cast<StoreInst>(UUUU)) {
+//                                                     SI->setOperand(0, ConstantInt::get(LI->getType(), a1Xval));
+//                                                     SI->setVolatile(true);
+//                                                 }
+//                                             }
                                         }
                                     }
 
