@@ -68,12 +68,12 @@ protected:
     uint32_t regToExtendedReg(uint32_t r) const;
     std::pair<uint32_t, uint32_t> extendedRegToRegs(uint32_t r) const;
 
-    template<std::size_t N>
+    template<std::int32_t N>
     llvm::Value* constInt(llvm::Value* t = nullptr) {
         if (!t) {
-            return llvm::ConstantInt::get(getType(), N);
+            return llvm::ConstantInt::get(getType(), N, true);
         } else {
-            return llvm::ConstantInt::get(t->getType(), N);
+            return llvm::ConstantInt::get(t->getType(), N, true);
         }
     };
 

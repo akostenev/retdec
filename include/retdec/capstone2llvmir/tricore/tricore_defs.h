@@ -479,7 +479,6 @@ typedef enum tricore_insn {
     TRICORE_INS_JNZT_16 = 0xAE,
     TRICORE_INS_JZ_D15 = 0x6E,
     TRICORE_INS_JZD = 0x76,
-    TRICORE_INS_JZA = 0xBD,
     TRICORE_INS_JZA_16 = 0xBC,
     TRICORE_INS_JZT_16 = 0x2E,
     TRICORE_INS_JLT = 0xBF,
@@ -561,6 +560,7 @@ typedef enum tricore_insn {
     TRICORE_INS_STHW16_A15 = 0xA8,
     TRICORE_INS_STWA = 0x59,
     TRICORE_INS_ST16_A15_A = 0xE8,
+    TRICORE_INS_STHW_Q = 0x65,
 
     TRICORE_INS_ST89 = 0x89,
     TRICORE_INS_STB_ABS = 0x25,

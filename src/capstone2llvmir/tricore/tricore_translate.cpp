@@ -211,7 +211,59 @@ void Capstone2LlvmIrTranslatorTricore::translateBitOperations(cs_insn* i, cs_tri
             break;
 
         case TRICORE_INS_RSUBD: //result = 0 - D[a]; D[a] = result[31:0];
-            v = irb.CreateNeg(op0);
+            switch (t->op2) {
+                case 0x00: //sat_neg = (D[a] < -80 H ) ? -80 H : D[a]; D[a] = (sat_neg > 7F H ) ? 7F H : sat_neg;
+                {
+                    auto *sat_neg = irb.CreateSelect(
+                        irb.CreateICmpSLT(op0, constInt<-0x80>(op0)),
+                        constInt<-0x80>(op0),
+                        op0
+                    );
+                    v = irb.CreateSelect(
+                        irb.CreateICmpSGT(sat_neg, constInt<0x7F>(op0)),
+                        constInt<0x7F>(op0),
+                        sat_neg
+                    );
+                    break;
+                }
+
+                case 0x01: //D[a] = (D[a] > FF H ) ? FF H : D[a]; // unsigned comparison
+                    v = irb.CreateSelect(
+                        irb.CreateICmpUGT(op0, constInt<0xFF>(op0)),
+                        constInt<0xFF>(op0),
+                        op0
+                    );
+                    break;
+
+                case 0x02: //sat_neg = (D[a] < -8000 H ) ? -8000 H : D[a]; D[a] = (sat_neg > 7FFF H ) ? 7FFF H : sat_neg;
+                {
+                    auto *sat_neg = irb.CreateSelect(
+                        irb.CreateICmpSLT(op0, constInt<-0x8000>(op0)),
+                        constInt<-0x8000>(op0),
+                        op0
+                    );
+                    v = irb.CreateSelect(
+                        irb.CreateICmpSGT(sat_neg, constInt<0x7FFF>(op0)),
+                        constInt<0x7FFF>(op0),
+                        sat_neg
+                    );
+                    break;
+                }
+                case 0x03: //D[a] = (D[a] > FFFF H ) ? FFFF H : D[a]; // unsigned comparison
+                    v = irb.CreateSelect(
+                        irb.CreateICmpUGT(op0, constInt<0xFFFF>(op0)),
+                        constInt<0xFFFF>(op0),
+                        op0
+                    );
+                    break;
+
+                case 0x05: //result = 0 - D[a]; D[a] = result[31:0];
+                    v = irb.CreateNeg(op0);
+                    break;
+
+                default:
+                    assert(false && TRICORE_INS_RSUBD);
+            }
             break;
 
         case TRICORE_INS_EQ16_D15: //result = (D[a] == D[b]); D[15] = zero_ext(result);

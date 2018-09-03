@@ -74,6 +74,8 @@ bool TricoreLoad::runOnModule(Module& M) {
     std::cout << "Word on a9[2088]: " << std::hex << a9On2088 << std::endl;
     std::cout << "HWORD on a9[2088][2594]: " << std::hex << getValOnPos(a9On2088, 2594, 2) << std::endl;
 
+    dumpModuleToFile(&M);
+
     /*
         %2 = load i32, i32* @a9, align 4
         %3 = add i32 %2, 2088
@@ -224,6 +226,7 @@ bool TricoreLoad::runOnModule(Module& M) {
 
                                             std::cout << "Replace load a9[" << std::dec << X << "][" << std::dec << Y << "] with ConstInt: 0x" << std::hex << a9XYval << std::endl;
                                             LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a9XYval));
+                                            LI->eraseFromParent();
 
 //                                             for (auto *UUUU : LI->users()) {
 //                                                 if (SExtInst *SE = dyn_cast<SExtInst>(UUUU)) {
@@ -315,6 +318,7 @@ bool TricoreLoad::runOnModule(Module& M) {
 
                                             std::cout << "Replace load a1[" << std::dec << X << "] with ConstInt: 0x" << std::hex << a1Xval << std::endl;
                                             LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a1Xval));
+                                            LI->eraseFromParent();
 
 //                                             for (auto *UUUU : LI->users()) {
 //                                                 if (StoreInst *SI = dyn_cast<StoreInst>(UUUU)) {
