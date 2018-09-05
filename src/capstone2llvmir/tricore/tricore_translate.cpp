@@ -691,7 +691,32 @@ void Capstone2LlvmIrTranslatorTricore::translateDiv(cs_insn* i, cs_tricore* t, l
                     storeOp(t->operands[0], irb.CreateZExt(op1, op0->getType()), irb);
                     break;
 
-                case 0x14: // rounded_result = ieee754_round(i_real(D[a]), PSW.RM); result = ieee754_32bit_format(rounded_result); D[c] = result[31:0];
+                case 0x0C: //Update flags TODO
+                    /*
+                    set_FS = (PSW.FS & ~D[a][15]) | (D[a][7] & D[a][15]);
+                    set_FI = (PSW.FI & ~D[a][14]) | (D[a][6] & D[a][14]);
+                    set_FV = (PSW.FV & ~D[a][13]) | (D[a][5] & D[a][13]);
+                    set_FZ = (PSW.FZ & ~D[a][12]) | (D[a][4] & D[a][12]);
+                    set_FU = (PSW.FU & ~D[a][11]) | (D[a][3] & D[a][11]);
+                    set_FX = (PSW.FX & ~D[a][10]) | (D[a][2] & D[a][10]);
+                    set_RM = (PSW.RM & ~D[a][9:8]) | (D[a][1:0] & D[a][9:8]);
+                    PSW.[31:24] = {set_FS, set_FI, set_FV, set_FZ, set_FU, set_FX, set_RM};
+                    */
+                    break;
+
+                case 0x12:
+                    /* TODO
+                    if(is_nan(D[a])) then result = 0;
+                    else if(f_real(D[a]) > 2 32 -1) then result = FFFFFFFF H ;
+                    else if(f_real(D[a]) < 0.0) then result = 0;
+                    else result = round_to_unsigned(D[a], PSW.RM);
+                    D[c] = result[31:0];
+                    */
+                    storeOp(t->operands[0], op1, irb);
+                    break;
+
+                case 0x14: // rounded_result = ieee754_round(i_real(D[a]), PSW.RM); result = ieee754_32bit_format(rounded_result); D[c] = result[31:0]; TODO
+                    storeOp(t->operands[0], op1, irb);
                     break;
 
                 case 0x1A: //DVINITE E[c] = sign_ext(D[a]);
