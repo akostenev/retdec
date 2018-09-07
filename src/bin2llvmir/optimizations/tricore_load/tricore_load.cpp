@@ -63,11 +63,14 @@ void TricoreLoad::getAnalysisUsage(AnalysisUsage &AU) const
  *         @c False otherwise.
  */
 bool TricoreLoad::runOnModule(Module& M) {
-//     return false;
     if (!ConfigProvider::getConfig(&M, config))
     {
             LOG << "[ABORT] config file is not available\n";
             return false;
+    }
+
+    if (!config->getConfig().architecture.isTricore()) {
+        return false;
     }
 
     auto a9On2088 = getValOnPos(0x8016D340, 2088, 4);

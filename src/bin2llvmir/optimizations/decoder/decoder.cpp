@@ -2317,12 +2317,17 @@ void Decoder::removeStaticallyLinkedFunctions()
 	}
 }
 
+bool isTriCoreLinkedFunctions(std::string n) {
+    return n == "putc" || n == "fputc" || n == "malloc" || n == "_Atrealloc" || n == "_Fwprep" || n == "write";
+}
+
 void Decoder::hackDeleteKnownLinkedFunctions()
 {
 	for (Function& f : _module->getFunctionList())
 	{
 		std::string n = f.getName();
-		if (n == "printf" || n == "scanf" || n == "strlen" || n == "strcmp")
+		if (n == "printf" || n == "scanf" || n == "strlen" || n == "strcmp"
+                    || (_config->getConfig().architecture.isTricore() && isTriCoreLinkedFunctions(n)))
 		{
 			f.deleteBody();
 			auto* cff = _config->getConfigFunction(&f);
