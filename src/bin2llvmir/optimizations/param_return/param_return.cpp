@@ -1159,7 +1159,7 @@ void DataFlowEntry::callsFilterCommonRegisters()
 		}
 		else if (_config->getConfig().architecture.isTricore())
                 {
-                        regNames = {"d4", "d5", "d6", "d7", "a4", "a5", "a6", "a7",};
+                        regNames = {"d4", "d5", "d6", "d7", "e4", "e6", "a4", "a5", "a6", "a7", "p4", "p6"};
                 }
 	}
 	for (auto it = regNames.rbegin(); it != regNames.rend(); ++it)
@@ -1413,66 +1413,99 @@ void DataFlowEntry::applyToIrOrdinary()
 				}
 			}
 
-			std::size_t idx = 0;
-			for (auto* t : argTypes)
-			{
-				(void) t;
-				if (p.second.size() <= idx)
-				{
-					if (_config->getConfig().architecture.isArmOrThumb())
-					{
-						if (idx < armNames.size())
-						{
-							auto* r = _config->getLlvmRegister(armNames[idx]);
-							auto* l = new LoadInst(r, "", p.first);
-							p.second.push_back(l);
-						}
-					}
-					else if (_config->isMipsOrPic32())
-					{
-						if (idx < mipsNames.size())
-						{
-							auto* r = _config->getLlvmRegister(mipsNames[idx]);
-							auto* l = new LoadInst(r, "", p.first);
-							p.second.push_back(l);
-						}
-					}
-					else if (_config->getConfig().architecture.isPpc())
-					{
-						if (idx < ppcNames.size())
-						{
-							auto* r = _config->getLlvmRegister(ppcNames[idx]);
-							auto* l = new LoadInst(r, "", p.first);
-							p.second.push_back(l);
-						}
-					}
-					else if (_config->getConfig().architecture.isX86()
-							&& stackOff.isDefined())
-					{
-						auto* s = _config->getLlvmStackVariable(p.first->getFunction(), stackOff);
-						if (s)
-						{
-							auto* l = new LoadInst(s, "", p.first);
-							p.second.push_back(l);
-							stackOff = stackOff + 4;
-						}
-						else
-						{
-							stackOff.setUndefined();
-						}
-					}
-					else if (_config->getConfig().architecture.isTricore()) //TODO check
-                                        {
-                                                if (idx < tricoreNames.size()) {
-                                                        auto* r = _config->getLlvmRegister(tricoreNames[idx]);
-                                                        auto* l = new LoadInst(r, "", p.first);
-                                                        p.second.push_back(l);
-                                                }
+                        if (_config->getConfig().architecture.isTricore()) //TODO check
+                        {
+                            //clear old args and types
+                            p.second.clear();
+                            argTypes.clear();
+                            for (LoadInst *LI : argLoads) { // build new ones, based on load instructions
+                                std::string name = LI->getPointerOperand()->getName().str();
 
+                                for (const auto &s : tricoreNames) {
+                                    if (s == name) {
+                                        auto* r = _config->getLlvmRegister(name);
+                                        auto* l = new LoadInst(r, "", p.first);
+
+                                        switch (name.at(0)) {
+                                            case 'a':
+                                                argTypes.push_back(llvm::Type::getInt32PtrTy(fnc->getContext()));
+                                                break;
+
+                                            case 'p':
+                                                argTypes.push_back(llvm::Type::getInt64PtrTy(fnc->getContext()));
+                                                break;
+
+                                            case 'd':
+                                                argTypes.push_back(llvm::Type::getInt32Ty(fnc->getContext()));
+                                                break;
+
+                                            case 'e':
+                                                argTypes.push_back(llvm::Type::getInt64Ty(fnc->getContext()));
+                                                break;
+
+                                            default:
+                                                assert(false && "Unknown TriCore Parameter Register Name");
                                         }
-				}
-				++idx;
-			}
+                                        p.second.push_back(l);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                                std::size_t idx = 0;
+                                for (auto* t : argTypes)
+                                {
+                                        (void) t;
+                                        if (p.second.size() <= idx)
+                                        {
+                                                if (_config->getConfig().architecture.isArmOrThumb())
+                                                {
+                                                        if (idx < armNames.size())
+                                                        {
+                                                                auto* r = _config->getLlvmRegister(armNames[idx]);
+                                                                auto* l = new LoadInst(r, "", p.first);
+                                                                p.second.push_back(l);
+                                                        }
+                                                }
+                                                else if (_config->isMipsOrPic32())
+                                                {
+                                                        if (idx < mipsNames.size())
+                                                        {
+                                                                auto* r = _config->getLlvmRegister(mipsNames[idx]);
+                                                                auto* l = new LoadInst(r, "", p.first);
+                                                                p.second.push_back(l);
+                                                        }
+                                                }
+                                                else if (_config->getConfig().architecture.isPpc())
+                                                {
+                                                        if (idx < ppcNames.size())
+                                                        {
+                                                                auto* r = _config->getLlvmRegister(ppcNames[idx]);
+                                                                auto* l = new LoadInst(r, "", p.first);
+                                                                p.second.push_back(l);
+                                                        }
+                                                }
+                                                else if (_config->getConfig().architecture.isX86()
+                                                                && stackOff.isDefined())
+                                                {
+                                                        auto* s = _config->getLlvmStackVariable(p.first->getFunction(), stackOff);
+                                                        if (s)
+                                                        {
+                                                                auto* l = new LoadInst(s, "", p.first);
+                                                                p.second.push_back(l);
+                                                                stackOff = stackOff + 4;
+                                                        }
+                                                        else
+                                                        {
+                                                                stackOff.setUndefined();
+                                                        }
+                                                }
+                                        }
+                                        ++idx;
+                                }
+                        }
 		}
 
 		auto* oldType = fnc->getType();
