@@ -490,6 +490,7 @@ std::string Capstone2LlvmIrTranslatorTricore::getRegisterName(uint32_t r) const 
     } else {
         assert(false); // & "Missing name for register number: " + std::to_string(r));
     }
+    return "";
 }
 
 } // namespace capstone2llvmir

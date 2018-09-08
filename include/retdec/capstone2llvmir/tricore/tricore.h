@@ -228,7 +228,8 @@ static std::pair<tricore_reg, tricore_reg> extendedRegToRegs(tricore_reg r) {
 
             default: assert(false);
         }
-    };
+        return std::make_pair(TRICORE_REG_INVALID, TRICORE_REG_INVALID);
+    }
 };
 
 } // namespace capstone2llvmir
