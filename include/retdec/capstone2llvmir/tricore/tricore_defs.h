@@ -208,13 +208,10 @@ typedef enum tricore_reg {
 //     TRIORE_REG_TR6ADR = 0xf066,
     //.........
 
-    TRICORE_REG_ENDING = 0x100000 // <-- mark the end of the list or registers
-} tricore_reg;
+    TRICORE_REG_ENDING = 0x100000, // <-- mark the end of the list or registers
 
-
-typedef enum tricore_reg_ext {
     //8 Extended data registers E[0] := D[0]:D[1], E[2] := D[2]:D[3]
-    TRICORE_REG_E_0 = TRICORE_REG_ENDING + 1,
+    TRICORE_REG_E_0,
     TRICORE_REG_E_2,
     TRICORE_REG_E_4,
     TRICORE_REG_E_6,
@@ -232,7 +229,7 @@ typedef enum tricore_reg_ext {
     TRICORE_REG_P_10,
     TRICORE_REG_P_12,
     TRICORE_REG_P_14,
-} tricore_reg_ext;
+} tricore_reg;
 
 typedef enum TRICORE_OF { // Opcode format
     TRICORE_OF_INVALID,
@@ -337,7 +334,6 @@ typedef struct tricore_op_mem {
 // Instruction operand
 typedef struct cs_tricore_op {
     tricore_op_type type;    // operand type
-    bool extended; // e.g. reg E[0] = D[0]:D[1]
 
     union {
         tricore_reg reg;    // register value for REG operand
@@ -346,22 +342,18 @@ typedef struct cs_tricore_op {
     };
 
     cs_tricore_op() :
-        type(TRICORE_OP_INVALID),
-        extended(false) {};
+        type(TRICORE_OP_INVALID) {};
 
-    cs_tricore_op(tricore_reg reg, bool extended = false) :
+    cs_tricore_op(tricore_reg reg) :
         type(TRICORE_OP_REG),
-        extended(extended),
         reg(reg) {};
 
     cs_tricore_op(tricore_op_imm imm) :
         type(TRICORE_OP_IMM),
-        extended(false),
         imm(imm) {};
 
     cs_tricore_op(tricore_op_mem mem) :
         type(TRICORE_OP_MEM),
-        extended(false),
         mem(mem) {};
 
 } cs_tricore_op;

@@ -77,7 +77,7 @@ bool TricoreLoad::runOnModule(Module& M) {
     std::cout << "Word on a9[2088]: " << std::hex << a9On2088 << std::endl;
     std::cout << "HWORD on a9[2088][2594]: " << std::hex << getValOnPos(a9On2088, 2594, 2) << std::endl;
 
-    dumpModuleToFile(&M);
+//     dumpModuleToFile(&M);
 
     /*
         %2 = load i32, i32* @a9, align 4
@@ -342,7 +342,7 @@ bool TricoreLoad::runOnModule(Module& M) {
         }
     }
 
-    dumpModuleToFile(&M);
+//     dumpModuleToFile(&M);
 
     return foundA1 || foundA9;
 }

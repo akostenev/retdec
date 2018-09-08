@@ -1439,7 +1439,7 @@ void Capstone2LlvmIrTranslatorTricore::translateStore(cs_insn* i, cs_tricore* t,
     storeOp(t->operands[0], ld<1>(t, irb), irb);
 
     if (pinc) {
-        storeRegister(t->operands[0].reg, irb.CreateAdd(loadRegister(t->operands[0].reg, irb, t->operands[0].extended), pinc), irb);
+        storeRegister(t->operands[0].reg, irb.CreateAdd(loadRegister(t->operands[0].reg, irb), pinc), irb);
     }
 }
 

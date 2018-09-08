@@ -64,10 +64,6 @@ protected:
     llvm::CallInst* generateCondBranchFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* cond, llvm::Value* t, bool relative = true);
     llvm::CallInst* generateReturnFunctionCall(cs_insn* i, llvm::IRBuilder<>& irb, llvm::Value* t, bool relative = true);
 
-    //returns e.g. E[0] for D[0], E2 for D[2]
-    uint32_t regToExtendedReg(uint32_t r) const;
-    std::pair<uint32_t, uint32_t> extendedRegToRegs(uint32_t r) const;
-
     template<std::int32_t N>
     llvm::Value* constInt(llvm::Value* t = nullptr) {
         if (!t) {
@@ -90,8 +86,8 @@ protected:
     llvm::Value* loadOp(cs_tricore_op& op, llvm::IRBuilder<>& irb, llvm::Type* ty = nullptr);
     llvm::Instruction* storeOp(cs_tricore_op& op, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::THROW);
 
-    llvm::Value* loadRegister(uint32_t r, llvm::IRBuilder<>& irb, bool extended = false);
-    llvm::StoreInst* storeRegister(uint32_t r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::THROW, bool extended = false);
+    llvm::Value* loadRegister(tricore_reg r, llvm::IRBuilder<>& irb);
+    llvm::StoreInst* storeRegister(tricore_reg r, llvm::Value* val, llvm::IRBuilder<>& irb, eOpConv ct = eOpConv::THROW);
 
     void genCarry(llvm::Value* v, llvm::IRBuilder<>& irb);
 
@@ -134,10 +130,108 @@ protected:
     void translate0B(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateIgnore(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
     void translateInsertBit(cs_insn* i, cs_tricore* t, llvm::IRBuilder<>& irb);
+
+public:
+
+//returns e.g. E[0] for D[0], E2 for D[2]
+static tricore_reg regToExtendedReg(tricore_reg r) {
+    switch (r) {
+        case TRICORE_REG_D_0:
+        case TRICORE_REG_D_1: return TRICORE_REG_E_0;
+        case TRICORE_REG_D_2:
+        case TRICORE_REG_D_3: return TRICORE_REG_E_2;
+        case TRICORE_REG_D_4:
+        case TRICORE_REG_D_5: return TRICORE_REG_E_4;
+        case TRICORE_REG_D_6:
+        case TRICORE_REG_D_7: return TRICORE_REG_E_6;
+        case TRICORE_REG_D_8:
+        case TRICORE_REG_D_9: return TRICORE_REG_E_8;
+        case TRICORE_REG_D_10:
+        case TRICORE_REG_D_11: return TRICORE_REG_E_10;
+        case TRICORE_REG_D_12:
+        case TRICORE_REG_D_13: return TRICORE_REG_E_12;
+        case TRICORE_REG_D_14:
+        case TRICORE_REG_D_15: return TRICORE_REG_E_14;
+
+        case TRICORE_REG_A_0:
+        case TRICORE_REG_A_1: return TRICORE_REG_P_0;
+        case TRICORE_REG_A_2:
+        case TRICORE_REG_A_3: return TRICORE_REG_P_2;
+        case TRICORE_REG_A_4:
+        case TRICORE_REG_A_5: return TRICORE_REG_P_4;
+        case TRICORE_REG_A_6:
+        case TRICORE_REG_A_7: return TRICORE_REG_P_6;
+        case TRICORE_REG_A_8:
+        case TRICORE_REG_A_9: return TRICORE_REG_P_8;
+        case TRICORE_REG_A_10:
+        case TRICORE_REG_A_11: return TRICORE_REG_P_10;
+        case TRICORE_REG_A_12:
+        case TRICORE_REG_A_13: return TRICORE_REG_P_12;
+        case TRICORE_REG_A_14:
+        case TRICORE_REG_A_15: return TRICORE_REG_P_14;
+
+        default: return TRICORE_REG_INVALID;
+    }
+};
+
+static std::pair<tricore_reg, tricore_reg> extendedRegToRegs(tricore_reg r) {
+     switch (r) {
+            case TRICORE_REG_D_0:
+            case TRICORE_REG_D_1:
+            case TRICORE_REG_E_0: return std::make_pair(TRICORE_REG_D_0, TRICORE_REG_D_1);
+            case TRICORE_REG_D_2:
+            case TRICORE_REG_D_3:
+            case TRICORE_REG_E_2: return std::make_pair(TRICORE_REG_D_2, TRICORE_REG_D_3);
+            case TRICORE_REG_D_4:
+            case TRICORE_REG_D_5:
+            case TRICORE_REG_E_4: return std::make_pair(TRICORE_REG_D_4, TRICORE_REG_D_5);
+            case TRICORE_REG_D_6:
+            case TRICORE_REG_D_7:
+            case TRICORE_REG_E_6: return std::make_pair(TRICORE_REG_D_6, TRICORE_REG_D_7);
+            case TRICORE_REG_D_8:
+            case TRICORE_REG_D_9:
+            case TRICORE_REG_E_8: return std::make_pair(TRICORE_REG_D_8, TRICORE_REG_D_9);
+            case TRICORE_REG_D_10:
+            case TRICORE_REG_D_11:
+            case TRICORE_REG_E_10: return std::make_pair(TRICORE_REG_D_10, TRICORE_REG_D_11);
+            case TRICORE_REG_D_12:
+            case TRICORE_REG_D_13:
+            case TRICORE_REG_E_12: return std::make_pair(TRICORE_REG_D_12, TRICORE_REG_D_13);
+            case TRICORE_REG_D_14:
+            case TRICORE_REG_D_15:
+            case TRICORE_REG_E_14: return std::make_pair(TRICORE_REG_D_14, TRICORE_REG_D_15);
+
+            case TRICORE_REG_A_0:
+            case TRICORE_REG_A_1:
+            case TRICORE_REG_P_0: return std::make_pair(TRICORE_REG_A_0, TRICORE_REG_A_1);
+            case TRICORE_REG_A_2:
+            case TRICORE_REG_A_3:
+            case TRICORE_REG_P_2: return std::make_pair(TRICORE_REG_A_2, TRICORE_REG_A_3);
+            case TRICORE_REG_A_4:
+            case TRICORE_REG_A_5:
+            case TRICORE_REG_P_4: return std::make_pair(TRICORE_REG_A_4, TRICORE_REG_A_5);
+            case TRICORE_REG_A_6:
+            case TRICORE_REG_A_7:
+            case TRICORE_REG_P_6: return std::make_pair(TRICORE_REG_A_6, TRICORE_REG_A_7);
+            case TRICORE_REG_A_8:
+            case TRICORE_REG_A_9:
+            case TRICORE_REG_P_8: return std::make_pair(TRICORE_REG_A_8, TRICORE_REG_A_9);
+            case TRICORE_REG_A_10:
+            case TRICORE_REG_A_11:
+            case TRICORE_REG_P_10: return std::make_pair(TRICORE_REG_A_10, TRICORE_REG_A_11);
+            case TRICORE_REG_A_12:
+            case TRICORE_REG_A_13:
+            case TRICORE_REG_P_12: return std::make_pair(TRICORE_REG_A_12, TRICORE_REG_A_13);
+            case TRICORE_REG_A_14:
+            case TRICORE_REG_A_15:
+            case TRICORE_REG_P_14: return std::make_pair(TRICORE_REG_A_14, TRICORE_REG_A_15);
+
+            default: assert(false);
+        }
+    };
 };
 
 } // namespace capstone2llvmir
 } // namespace retdec
 
 #endif
-

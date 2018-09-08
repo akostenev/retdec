@@ -27,11 +27,11 @@ tricore_reg getRegA(unsigned int n) {
 }
 
 cs_tricore_op getRegE(unsigned int n) {
-    return cs_tricore_op(getRegD(n), true);
+    return retdec::capstone2llvmir::Capstone2LlvmIrTranslatorTricore::regToExtendedReg(getRegD(n));
 }
 
 cs_tricore_op getRegP(unsigned int n) {
-    return cs_tricore_op(getRegA(n), true);
+    return retdec::capstone2llvmir::Capstone2LlvmIrTranslatorTricore::regToExtendedReg(getRegA(n));
 }
 
 template<std::size_t size, std::size_t N>
@@ -1555,15 +1555,15 @@ void dismRCR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             switch (t->op2) {
                 case 0x02: //result = E[d] - (D[a] * zero_ext(const9)); // unsigned operators E[c] = result[63:0];
                 case 0x06: //result = E[d] - (D[a] * zero_ext(const9)); // unsigned operators E[c] = suov(result, 64);
-                    t->operands[0].extended = true;
-                    t->operands[3].extended = true;
+                    t->operands[0] = getRegE(d);
+                    t->operands[3] = getRegE(s2);
                     t->operands[2] = zExtImm<9>(const9);
                     break;
 
                 case 0x03: //result = E[d] - (D[a] * sign_ext(const9)); E[c] = result[63:0];
                 case 0x07: //result = E[d] - (D[a] * sign_ext(const9)); E[c] = ssov(result, 64);
-                    t->operands[0].extended = true;
-                    t->operands[3].extended = true;
+                    t->operands[0] = getRegE(d);
+                    t->operands[3] = getRegD(s2);
                     break;
 
                 case 0x04:
@@ -1711,7 +1711,7 @@ void dismRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
                 case 0x0A:
                 case 0x1A:
                 case 0x3A:
-                    t->operands[0].extended = true;
+                    t->operands[0] = getRegE(d);
 
                 default:
                     break;
@@ -1801,7 +1801,7 @@ void dismRR2(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             switch (t->op2) {
                 case 0x68: //result = D[a] * D[b]; // unsigned E[c] = result[63:0];
                 case 0x6a: //result = D[a] * D[b]; E[c] = result[63:0];
-                    t->operands[0].extended = true;
+                    t->operands[0] = getRegE(d);
                     break;
 
                 default:
@@ -1972,7 +1972,7 @@ void dismRRRR(cs_tricore* t, cs_insn* i, const std::bitset<64>& b) {
             t->operands[0] = getRegD(d);
             t->operands[1] = getRegD(s1);
             t->operands[2] = getRegD(s2);
-            t->operands[3] = {getRegD(s3), t->op2 == 0x04 ? false : true};
+            t->operands[3] = t->op2 == 0x04 ? getRegD(s3) : getRegE(s3);
             break;
 
         default:

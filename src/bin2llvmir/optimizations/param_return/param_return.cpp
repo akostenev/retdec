@@ -1368,7 +1368,7 @@ void DataFlowEntry::applyToIrOrdinary()
 		static std::vector<std::string> mipsNames =
 				{"a0", "a1", "a2", "a3"};
                 static std::vector<std::string> tricoreNames =
-                                {"d4", "d5", "d6", "d7", "a4", "a5", "a6", "a7"};
+                                {"a4", "a5", "a6", "a7", "p4", "p6", "d4", "d5", "d6", "d7", "e4", "e6"};
 		if (_config->getConfig().tools.isPspGcc())
 		{
 			mipsNames = {"a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3"};
@@ -1425,6 +1425,7 @@ void DataFlowEntry::applyToIrOrdinary()
                                     if (s == name) {
                                         auto* r = _config->getLlvmRegister(name);
                                         auto* l = new LoadInst(r, "", p.first);
+                                        p.second.push_back(l);
 
                                         switch (name.at(0)) {
                                             case 'a':
@@ -1446,7 +1447,6 @@ void DataFlowEntry::applyToIrOrdinary()
                                             default:
                                                 assert(false && "Unknown TriCore Parameter Register Name");
                                         }
-                                        p.second.push_back(l);
                                         break;
                                     }
                                 }
