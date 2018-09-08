@@ -1412,45 +1412,69 @@ void DataFlowEntry::applyToIrOrdinary()
 					}
 				}
 			}
-
-                        if (_config->getConfig().architecture.isTricore()) //TODO check
+                        else if (_config->getConfig().architecture.isTricore()) //TODO check
                         {
+
                             //clear old args and types
                             p.second.clear();
                             argTypes.clear();
+
+                            std::vector<Value*> stackArgs; //temp stack, for later reverse order
                             for (LoadInst *LI : argLoads) { // build new ones, based on load instructions
-                                std::string name = LI->getPointerOperand()->getName().str();
+                                if (_config->isStackVariable(LI->getPointerOperand())) {
 
-                                for (const auto &s : tricoreNames) {
-                                    if (s == name) {
-                                        auto* r = _config->getLlvmRegister(name);
-                                        auto* l = new LoadInst(r, "", p.first);
-                                        p.second.push_back(l);
+                                        stackOff = _config->getStackVariableOffset(LI->getPointerOperand());
+                                        stackOff = -stackOff - 16;
 
-                                        switch (name.at(0)) {
-                                            case 'a':
-                                                argTypes.push_back(llvm::Type::getInt32PtrTy(fnc->getContext()));
-                                                break;
-
-                                            case 'p':
-                                                argTypes.push_back(llvm::Type::getInt64PtrTy(fnc->getContext()));
-                                                break;
-
-                                            case 'd':
-                                                argTypes.push_back(llvm::Type::getInt32Ty(fnc->getContext()));
-                                                break;
-
-                                            case 'e':
-                                                argTypes.push_back(llvm::Type::getInt64Ty(fnc->getContext()));
-                                                break;
-
-                                            default:
-                                                assert(false && "Unknown TriCore Parameter Register Name");
+                                        auto* s = _config->getLlvmStackVariable(p.first->getFunction(), stackOff);
+                                        if (s) {
+                                            auto* l = new LoadInst(s, "", p.first);
+                                            stackArgs.push_back(l);
+                                        } else {
+                                            stackOff.setUndefined();
                                         }
-                                        break;
+
+                                } else {
+                                    std::string name = LI->getPointerOperand()->getName().str();
+
+                                    for (const auto &s : tricoreNames) {
+                                        if (s == name) {
+                                            auto* l = new LoadInst(LI->getPointerOperand(), "", p.first);
+                                            p.second.push_back(l);
+
+                                            switch (name.at(0)) {
+                                                case 'a':
+                                                    argTypes.push_back(llvm::Type::getInt32PtrTy(fnc->getContext()));
+                                                    break;
+
+                                                case 'p':
+                                                    argTypes.push_back(llvm::Type::getInt64PtrTy(fnc->getContext()));
+                                                    break;
+
+                                                case 'd':
+                                                    argTypes.push_back(llvm::Type::getInt32Ty(fnc->getContext()));
+                                                    break;
+
+                                                case 'e':
+                                                    argTypes.push_back(llvm::Type::getInt64Ty(fnc->getContext()));
+                                                    break;
+
+                                                default:
+                                                    assert(false && "Unknown TriCore Parameter Register Name");
+                                            }
+                                            break;
+                                        }
                                     }
                                 }
                             }
+
+                            while (!stackArgs.empty()) { // store args in reverse order
+                                auto l = stackArgs.back();
+                                p.second.push_back(l);
+                                argTypes.push_back(l->getType());
+                                stackArgs.pop_back();
+                            }
+
                         }
                         else
                         {
