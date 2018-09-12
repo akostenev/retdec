@@ -227,34 +227,10 @@ bool TricoreLoad::runOnModule(Module& M) {
                                         if (LoadInst* LI = dyn_cast<LoadInst>(UUU)) {
                                             long unsigned int a9XYval = getValOnPos(ptrX, Y, LI->getType()->getIntegerBitWidth() / 8);
 
-                                            std::cout << "Replace load a9[" << std::dec << X << "][" << std::dec << Y << "] with ConstInt: 0x" << std::hex << a9XYval << std::endl;
+                                            std::cout << "Replace load a9[" << std::dec << X << "][" << std::dec << Y << "] with ConstInt" <<
+                                                LI->getType()->getIntegerBitWidth() / 8 << "Byte: " << ": 0x" << std::hex << a9XYval << std::endl;
                                             LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a9XYval));
                                             LI->eraseFromParent();
-
-//                                             for (auto *UUUU : LI->users()) {
-//                                                 if (SExtInst *SE = dyn_cast<SExtInst>(UUUU)) {
-// //                                                     SE->replaceAllUsesWith(ConstantInt::get(SE->getType(), a9XYval));
-//
-//                                                     for (auto *UUUUU : SE->users()) {
-//                                                         if (StoreInst *SI = dyn_cast<StoreInst>(UUUUU)) {
-//                                                             SI->setOperand(0, ConstantInt::get(SE->getType(), a9XYval));
-//                                                             SI->setVolatile(true);
-//                                                             break;
-//                                                         }
-//                                                     }
-//
-//                                                 } else if (ZExtInst *ZE = dyn_cast<ZExtInst>(UUUU)) {
-// //                                                     ZE->replaceAllUsesWith(ConstantInt::get(ZE->getType(), a9XYval));
-//
-//                                                      for (auto *UUUUU : ZE->users()) {
-//                                                         if (StoreInst *SI = dyn_cast<StoreInst>(UUUUU)) {
-//                                                             SI->setOperand(0, ConstantInt::get(ZE->getType(), a9XYval));
-//                                                             SI->setVolatile(true);
-//                                                             break;
-//                                                         }
-//                                                     }
-//                                                 }
-//                                             }
                                         }
                                     }
                                     break; //found first matching add disp instruction, we can stop searching
@@ -319,16 +295,10 @@ bool TricoreLoad::runOnModule(Module& M) {
                                             auto X = cast<ConstantInt>(i.first->getOperand(1))->getSExtValue();
                                             long unsigned int a1Xval = getValOnPos(baseA1, X, LI->getType()->getIntegerBitWidth() / 8);
 
-                                            std::cout << "Replace load a1[" << std::dec << X << "] with ConstInt: 0x" << std::hex << a1Xval << std::endl;
+                                            std::cout << "Replace load a1[" << std::dec << X << "] with ConstInt" <<
+                                                LI->getType()->getIntegerBitWidth() / 8 << "Byte: 0x" << std::hex << a1Xval << std::endl;
                                             LI->replaceAllUsesWith(ConstantInt::get(LI->getType(), a1Xval));
                                             LI->eraseFromParent();
-
-//                                             for (auto *UUUU : LI->users()) {
-//                                                 if (StoreInst *SI = dyn_cast<StoreInst>(UUUU)) {
-//                                                     SI->setOperand(0, ConstantInt::get(LI->getType(), a1Xval));
-//                                                     SI->setVolatile(true);
-//                                                 }
-//                                             }
                                         }
                                     }
 
