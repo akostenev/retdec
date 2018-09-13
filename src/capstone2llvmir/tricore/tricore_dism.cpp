@@ -27,11 +27,11 @@ tricore_reg getRegA(unsigned int n) {
 }
 
 cs_tricore_op getRegE(unsigned int n) {
-    return retdec::capstone2llvmir::Capstone2LlvmIrTranslatorTricore::regToExtendedReg(getRegD(n));
+    return regToExtendedReg(getRegD(n));
 }
 
 cs_tricore_op getRegP(unsigned int n) {
-    return retdec::capstone2llvmir::Capstone2LlvmIrTranslatorTricore::regToExtendedReg(getRegA(n));
+    return regToExtendedReg(getRegA(n));
 }
 
 template<std::size_t size, std::size_t N>

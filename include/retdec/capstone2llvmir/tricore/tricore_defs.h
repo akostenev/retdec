@@ -8,6 +8,8 @@
 
 #include "capstone/capstone.h"
 
+#include <utility>
+
 /**
  * @src TriCore 1.6 User manuel 1
  *
@@ -375,207 +377,337 @@ typedef struct cs_tricore {
 
 typedef enum tricore_insn {
     TRICORE_INS_INVALID = 0,
-    TRICORE_INS_NOP = 0x00,
-    TRICORE_INS_RET = 0x00,
 
-    TRICORE_INS_ADD16 = 0x12,
-    TRICORE_INS_ADD16_SSOV = 0x22,
-    TRICORE_INS_ADD16_AA = 0x30,
-    TRICORE_INS_ADD16_D15_DD = 0x1A,
-    TRICORE_INS_ADD16_D15 = 0x9A,
-    TRICORE_INS_ADD16_D15_c = 0x92,
-    TRICORE_INS_ADDA = 0xB0,
+    //SB
+    TRICORE_INS_CALL16 = 0x5C,
+    TRICORE_INS_J16 = 0x3C,
+    TRICORE_INS_JNZ_D15 = 0xEE,
+    TRICORE_INS_JZ_D15 = 0x6E,
+    TRICORE_INS_JEQ16_D15 = 0x1E,
+    TRICORE_INS_JEQ_4_c_PLUS_16 = 0x9E,
+    TRICORE_INS_JNE16_D15 = 0x5E,
+    TRICORE_INS_JNE_16_z = 0xDE,
+
+    //SBR
+    TRICORE_INS_JEQ16 = 0x3E,
+    TRICORE_INS_JEQ_4_r_PLUS_16 = 0xBE,
+    TRICORE_INS_JGEZD = 0xCE,
+    TRICORE_INS_JGTZ = 0x4E,
+    TRICORE_INS_JLEZD = 0x8E,
+    TRICORE_INS_JLTZ16 = 0x0E,
+    TRICORE_INS_JNE_16_z_r = 0x7E,
+    TRICORE_INS_JNE_16_z_r_PLUS_16 = 0xFE,
+    TRICORE_INS_JNZ16 = 0xF6,
+    TRICORE_INS_JNZA_16 = 0x7C,
+    TRICORE_INS_JZD = 0x76,
+    TRICORE_INS_JZA_16 = 0xBC,
+    TRICORE_INS_LOOP16 = 0xFC,
+
+    //SBRN
+    TRICORE_INS_JNZT_16 = 0xAE,
+    TRICORE_INS_JZT_16 = 0x2E,
+
+    //SC
+    TRICORE_INS_ANDD15 = 0x16,
+    TRICORE_INS_BISR16 = 0xE0,
+    TRICORE_INS_LDA16_A15 = 0xD8,
+    TRICORE_INS_LD16_D15_A10 = 0x58,
+    TRICORE_INS_MOVD15 = 0xDA,
+    TRICORE_INS_OR16_D15 = 0x96,
+    TRICORE_INS_ST_A10_A15 = 0xF8,
+    TRICORE_INS_ST16_D15_A10 = 0x78,
+    TRICORE_INS_SUBA10 = 0x20,
+
+    //SLR
+    TRICORE_INS_LD16A = 0xD4,
+    TRICORE_INS_LDA_PINC = 0xC4,
+    TRICORE_INS_LDB_D_A = 0x14,
+    TRICORE_INS_LDB_PINC = 0x04,
+    TRICORE_INS_LDHW16 = 0x94,
+    TRICORE_INS_LD_HD_PINC = 0x84,
+    TRICORE_INS_LDD = 0x54,
+    TRICORE_INS_LDD_PINC = 0x44,
+
+    //SLRO
+    TRICORE_INS_LDA = 0xC8,
+    TRICORE_INS_LDB_REL = 0x08,
+    TRICORE_INS_LDHW16_REL = 0x88,
+    TRICORE_INS_LDW16 = 0x48,
+
+    //SR
+    TRICORE_INS_RET = 0x00, // 00, 0A, !#!07, 09, 08, !#!05,
+    TRICORE_INS_JIA = 0xDC, // 00
+    TRICORE_INS_NOT16 = 0x46, // 00
+    TRICORE_INS_RSUBD = 0x32, // 05, 00, 01, 02, 03
+
+    //SRC
     TRICORE_INS_ADDD_c = 0xC2,
+    TRICORE_INS_ADD16_D15_c = 0x92,
+    TRICORE_INS_ADD16_D15 = 0x9A,
+    TRICORE_INS_ADDA = 0xB0,
+    TRICORE_INS_CADD16 = 0x8A,
+    //!#!CA
+    TRICORE_INS_CMOVD_SRC = 0xAA,
+    TRICORE_INS_CMOVN16 = 0xEA,
+    TRICORE_INS_EQ16 = 0xBA,
+    //!#!FA
+    TRICORE_INS_MOVD = 0x82,
+    TRICORE_INS_MOVA = 0xA0,
+    TRICORE_INS_SHD = 0x06,
+    TRICORE_INS_SHAD = 0x86,
+
+    //SRO
+    TRICORE_INS_LD16_A15 = 0xCC,
+    TRICORE_INS_LD_BUD15 = 0x0C,
+    TRICORE_INS_LD_HD = 0x8C,
+    TRICORE_INS_LDD15 = 0x4C,
+    TRICORE_INS_STA_16 = 0xEC,
+    TRICORE_INS_STB16 = 0x2C,
+    TRICORE_INS_STHW16_D15 = 0xAC,
+    TRICORE_INS_S16_D15 = 0x6C,
+
+    //SRR
     TRICORE_INS_ADDDD = 0x42,
+    TRICORE_INS_ADD16 = 0x12,
+    TRICORE_INS_ADD16_D15_DD = 0x1A,
+    TRICORE_INS_ADD16_AA = 0x30,
+    TRICORE_INS_ADD16_SSOV = 0x22,
+    TRICORE_INS_ANDD = 0x26,
+    TRICORE_INS_CMOVD = 0x2A,
+    TRICORE_INS_CMOVD_D15 = 0x6A,
+    TRICORE_INS_EQ16_D15 = 0x3A,
+    //!#!7A
+    TRICORE_INS_MOVDD = 0x02,
+    TRICORE_INS_MOVAD = 0x60,
+    TRICORE_INS_MOVAA = 0x40,
+    TRICORE_INS_MOVDA = 0x80,
+    TRICORE_INS_MULD2 = 0xE2,
+    TRICORE_INS_ORD = 0xA6,
+    TRICORE_INS_SUBD = 0xA2,
+    TRICORE_INS_SUBD1516 = 0x52,
+    TRICORE_INS_SUBD15 = 0x5A,
+    //!#!62
+    TRICORE_INS_XOR16 = 0xC6,
+
+    //SRRS
+    TRICORE_INS_ADDSCA16 = 0x10,
+
+    //SSR
+    TRICORE_INS_STA = 0xF4,
+    //!#!E4
+    TRICORE_INS_STB = 0x34,
+    TRICORE_INS_STB_PINC = 0x24,
+    TRICORE_INS_STHW16 = 0xB4,
+    TRICORE_INS_STHW = 0xA4,
+    TRICORE_INS_STD = 0x74,
+    TRICORE_INS_ST_PINC = 0x64,
+
+    //SSRO
+    TRICORE_INS_ST16_A15_A = 0xE8,
+    TRICORE_INS_STBA = 0x28,
+    TRICORE_INS_STHW16_A15 = 0xA8,
+    TRICORE_INS_ST16_A15_D = 0x68,
+
+    //ABS
+    TRICORE_INS_LD = 0x85, // 02 01 03 00
+    TRICORE_INS_LDB = 0x05, // 00 01 02 03
+    //!#!15 02 03
+    //!#!E5 01 00
+    TRICORE_INS_LEA_ABS = 0xC5, // 00
+    TRICORE_INS_ST = 0xA5, // 02 01 03 00
+    TRICORE_INS_STB_ABS = 0x25, // 00 02
+    TRICORE_INS_STHW_Q = 0x65, // 00
+    //!#!15 00 01
+
+    //ABSB
+    TRICORE_INS_ST_BIT = 0xD5, // 00
+
+    //B
+    TRICORE_INS_CALL32 = 0x6D,
+    TRICORE_INS_CALLABS = 0xED,
+    TRICORE_INS_FCALL = 0x61,
+    //!#!E1
+    TRICORE_INS_J32 = 0x1D,
+    TRICORE_INS_JA = 0x9D,
+    TRICORE_INS_JL = 0x5D,
+    TRICORE_INS_JGEDD = 0x7F,
+
+    //BIT
+    //!#!47 00 03 02 01
+    TRICORE_INS_NAND_NOR = 0x87, // 00 03 02 01
+    TRICORE_INS_INST = 0x67, // 00 01
+    TRICORE_INS_NAND = 0x07, // 00 01 02 03
+    //!#!C7 00 03 02 01
+    //!#!27 00 03 02 01
+    //!#!A7 00 01 02 03
+
+    //BO
+    //89 2E 0E 1E 2C 0C 1C 2D 0D 1D 2B 0B 1B 2A 0A 1A 2F 0F
+    //A9 0E 1E 0C 1C 0D 1D
+    //09 26 06 16
+    //29 06 16
+    //99
+
     TRICORE_INS_ADDI = 0x1B,
     TRICORE_INS_ADDIH_A = 0x11,
     TRICORE_INS_ADDIH_D = 0x9B,
     TRICORE_INS_ADDSCA = 0x01,
-    TRICORE_INS_ADDSCA16 = 0x10,
     TRICORE_INS_CADD = 0xAB,
-    TRICORE_INS_CADD16 = 0x8A,
     TRICORE_INS_MADD = 0x13,
     TRICORE_INS_MADD_RRR2 = 0x03,
 
-    TRICORE_INS_ANDD = 0x26,
-    TRICORE_INS_ANDD15 = 0x16,
-    TRICORE_INS_NAND = 0x07,
-    TRICORE_INS_NAND_NOR = 0x87,
 
     TRICORE_INS_BIT_OPERATIONS1 = 0x8F,
     TRICORE_INS_BIT_OPERATIONS2 = 0x0F,
-    TRICORE_INS_BISR16 = 0xE0,
 
-    TRICORE_INS_CALL16 = 0x5C,
-    TRICORE_INS_CALL32 = 0x6D,
     TRICORE_INS_CALLI = 0x2D,
-    TRICORE_INS_CALLABS = 0xED,
-
-    TRICORE_INS_CMOVN16 = 0xEA,
-
-    TRICORE_INS_CMOVD = 0x2A,
-    TRICORE_INS_CMOVD_D15 = 0x6A,
-    TRICORE_INS_CMOVD_SRC = 0xAA,
-
     TRICORE_INS_CMP = 0x8B,
-
     TRICORE_INS_DEXTR = 0x77,
-
     TRICORE_INS_DIV = 0x4B,
     TRICORE_INS_DVSTEP = 0x6B,
-
     TRICORE_INS_EXTR_INSR = 0x17,
     TRICORE_INS_EXTR = 0x37,
 
-    TRICORE_INS_EQ16 = 0xBA,
-    TRICORE_INS_EQ16_D15 = 0x3A,
-
-    TRICORE_INS_FCALL = 0x61,
-
     TRICORE_INS_ISYNC = 0x0D,
 
-    TRICORE_INS_INST = 0x67,
     TRICORE_INS_INSERT_IMASK = 0xB7,
     TRICORE_INS_INSERT = 0xD7,
 
-    TRICORE_INS_J32 = 0x1D,
     TRICORE_INS_JNEQ32 = 0x5F,
-    TRICORE_INS_J16 = 0x3C,
-    TRICORE_INS_JA = 0x9D,
+
     TRICORE_INS_JEQ32 = 0xDF,
-    TRICORE_INS_JEQ16_D15 = 0x1E,
-    TRICORE_INS_JNE16_D15 = 0x5E,
-    TRICORE_INS_JEQ_4_c_PLUS_16 = 0x9E,
-    TRICORE_INS_JEQ16 = 0x3E,
-    TRICORE_INS_JEQ_4_r_PLUS_16 = 0xBE,
     TRICORE_INS_JEQA = 0x7D,
     TRICORE_INS_JGE = 0xFF,
-    TRICORE_INS_JGEDD = 0x7F,
-    TRICORE_INS_JGEZD = 0xCE,
-    TRICORE_INS_JGTZ = 0x4E,
-    TRICORE_INS_JIA = 0xDC,
-    TRICORE_INS_JL = 0x5D,
     TRICORE_INS_JLA = 0xDD,
     TRICORE_INS_JLTD = 0x3F,
-    TRICORE_INS_JLTZ16 = 0x0E,
-    TRICORE_INS_JLEZD = 0x8E,
-
-    TRICORE_INS_JNE_16_z = 0xDE,
-    TRICORE_INS_JNE_16_z_r = 0x7E,
-    TRICORE_INS_JNE_16_z_r_PLUS_16 = 0xFE,
     TRICORE_INS_JZ = 0xBD,
-    TRICORE_INS_JNZ_D15 = 0xEE,
-    TRICORE_INS_JNZ16 = 0xF6,
-    TRICORE_INS_JNZA_16 = 0x7C,
     TRICORE_INS_JNZT = 0x6F,
-    TRICORE_INS_JNZT_16 = 0xAE,
-    TRICORE_INS_JZ_D15 = 0x6E,
-    TRICORE_INS_JZD = 0x76,
-    TRICORE_INS_JZA_16 = 0xBC,
-    TRICORE_INS_JZT_16 = 0x2E,
     TRICORE_INS_JLT = 0xBF,
     TRICORE_INS_JNE_INC_DEC = 0x9F,
 
-    TRICORE_INS_LD = 0x85,
-    TRICORE_INS_LDA = 0xC8,
-    TRICORE_INS_LDA16_A15 = 0xD8,
-    TRICORE_INS_LDB_PINC = 0x04,
-    TRICORE_INS_LDB = 0x05,
-    TRICORE_INS_LDB_D_A = 0x14,
-    TRICORE_INS_LDB_REL = 0x08,
-    TRICORE_INS_LDD15 = 0x4c,
-    TRICORE_INS_LD16A = 0xD4,
-    TRICORE_INS_LD16_D15_A10 = 0x58,
-    TRICORE_INS_LD16_A15 = 0xCC,
-    TRICORE_INS_LDA_PINC = 0xC4,
-    TRICORE_INS_LDD_PINC = 0x44,
-    TRICORE_INS_LDHW16 = 0x94,
-    TRICORE_INS_LDHW16_REL = 0x88,
-    TRICORE_INS_LDW16 = 0x48,
-    TRICORE_INS_LD_HD = 0x8C,
-    TRICORE_INS_LD_HD_PINC = 0x84,
+
     TRICORE_INS_LD_BUD = 0x39,
-    TRICORE_INS_LD_BUD15 = 0x0C,
     TRICORE_INS_LDW = 0x19,
     TRICORE_INS_LD09 = 0x09,
-    TRICORE_INS_LDD = 0x54,
     TRICORE_INS_LDA_OFF = 0x99,
-
     TRICORE_INS_0B = 0x0B,
-
-    TRICORE_INS_LOOP16 = 0xFC,
     TRICORE_INS_LOOP = 0xFD,
-
-    TRICORE_INS_MOVA = 0xA0,
-    TRICORE_INS_MOVDD = 0x02,
-    TRICORE_INS_MOVAA = 0x40,
-    TRICORE_INS_MOVAD = 0x60,
-    TRICORE_INS_MOVDA = 0x80,
-    TRICORE_INS_MOVD = 0x82,
-    TRICORE_INS_MOVD15 = 0xDA,
     TRICORE_INS_MOVD_C16 = 0x3B,
     TRICORE_INS_MOVH = 0x7B,
     TRICORE_INS_MOVH_A = 0x91,
     TRICORE_INS_MOVU = 0xBB,
-
     TRICORE_INS_MULD = 0x73,
-    TRICORE_INS_MULD2 = 0xE2,
     TRICORE_INS_MULE = 0x53,
-
-    TRICORE_INS_NOT16 = 0x46,
-
-    TRICORE_INS_RSUBD = 0x32,
-
     TRICORE_INS_SELN = 0x2B,
 
-    TRICORE_INS_SHAD = 0x86,
-    TRICORE_INS_SHD = 0x06,
-
-    TRICORE_INS_ST = 0xA5,
-    TRICORE_INS_ST16_A15_D = 0x68,
-    TRICORE_INS_S16_D15 = 0x6C,
-    TRICORE_INS_ST16_D15_A10 = 0x78,
-    TRICORE_INS_ST_PINC = 0x64,
-    TRICORE_INS_STA = 0xF4,
-    TRICORE_INS_STA_16 = 0xEC,
-    TRICORE_INS_ST_A10_A15 = 0xF8,
-    TRICORE_INS_STB_PINC = 0x24,
-    TRICORE_INS_STB = 0x34,
-    TRICORE_INS_STB16 = 0x2C,
-    TRICORE_INS_STBA = 0x28,
     TRICORE_INS_ST_BA = 0xE9,
-    TRICORE_INS_ST_BIT = 0xD5,
-    TRICORE_INS_STD = 0x74,
-    TRICORE_INS_STHW = 0xA4,
-    TRICORE_INS_STHW16_D15 = 0xAC,
-    TRICORE_INS_STHW16 = 0xB4,
-    TRICORE_INS_STHW16_A15 = 0xA8,
     TRICORE_INS_STWA = 0x59,
-    TRICORE_INS_ST16_A15_A = 0xE8,
-    TRICORE_INS_STHW_Q = 0x65,
 
     TRICORE_INS_ST89 = 0x89,
-    TRICORE_INS_STB_ABS = 0x25,
-
-    TRICORE_INS_SUBA10 = 0x20,
-    TRICORE_INS_SUBD = 0xA2,
-    TRICORE_INS_SUBD15 = 0x5A,
-    TRICORE_INS_SUBD1516 = 0x52,
     TRICORE_INS_MSUB = 0x33,
     TRICORE_INS_MSUB_RRR2 = 0x23,
-
     TRICORE_INS_MFCR = 0x4D,
     TRICORE_INS_MTCR = 0xCD,
-
     TRICORE_INS_LEA = 0xD9,
-    TRICORE_INS_LEA_ABS = 0xC5,
-
-    TRICORE_INS_ORD = 0xA6,
-    TRICORE_INS_OR16_D15 = 0x96,
-
-    TRICORE_INS_XOR16 = 0xC6,
-
-
 } tricore_insn;
+
+//returns e.g. E[0] for D[0], E2 for D[2]
+inline tricore_reg regToExtendedReg(tricore_reg r) {
+    switch (r) {
+        case TRICORE_REG_D_0:
+        case TRICORE_REG_D_1: return TRICORE_REG_E_0;
+        case TRICORE_REG_D_2:
+        case TRICORE_REG_D_3: return TRICORE_REG_E_2;
+        case TRICORE_REG_D_4:
+        case TRICORE_REG_D_5: return TRICORE_REG_E_4;
+        case TRICORE_REG_D_6:
+        case TRICORE_REG_D_7: return TRICORE_REG_E_6;
+        case TRICORE_REG_D_8:
+        case TRICORE_REG_D_9: return TRICORE_REG_E_8;
+        case TRICORE_REG_D_10:
+        case TRICORE_REG_D_11: return TRICORE_REG_E_10;
+        case TRICORE_REG_D_12:
+        case TRICORE_REG_D_13: return TRICORE_REG_E_12;
+        case TRICORE_REG_D_14:
+        case TRICORE_REG_D_15: return TRICORE_REG_E_14;
+
+        case TRICORE_REG_A_0:
+        case TRICORE_REG_A_1: return TRICORE_REG_P_0;
+        case TRICORE_REG_A_2:
+        case TRICORE_REG_A_3: return TRICORE_REG_P_2;
+        case TRICORE_REG_A_4:
+        case TRICORE_REG_A_5: return TRICORE_REG_P_4;
+        case TRICORE_REG_A_6:
+        case TRICORE_REG_A_7: return TRICORE_REG_P_6;
+        case TRICORE_REG_A_8:
+        case TRICORE_REG_A_9: return TRICORE_REG_P_8;
+        case TRICORE_REG_A_10:
+        case TRICORE_REG_A_11: return TRICORE_REG_P_10;
+        case TRICORE_REG_A_12:
+        case TRICORE_REG_A_13: return TRICORE_REG_P_12;
+        case TRICORE_REG_A_14:
+        case TRICORE_REG_A_15: return TRICORE_REG_P_14;
+
+        default: break;
+    }
+    return TRICORE_REG_INVALID;
+};
+
+inline std::pair<tricore_reg, tricore_reg> extendedRegToRegs(tricore_reg r) {
+    switch (r) {
+        case TRICORE_REG_D_0:
+        case TRICORE_REG_D_1:
+        case TRICORE_REG_E_0: return std::make_pair(TRICORE_REG_D_0, TRICORE_REG_D_1);
+        case TRICORE_REG_D_2:
+        case TRICORE_REG_D_3:
+        case TRICORE_REG_E_2: return std::make_pair(TRICORE_REG_D_2, TRICORE_REG_D_3);
+        case TRICORE_REG_D_4:
+        case TRICORE_REG_D_5:
+        case TRICORE_REG_E_4: return std::make_pair(TRICORE_REG_D_4, TRICORE_REG_D_5);
+        case TRICORE_REG_D_6:
+        case TRICORE_REG_D_7:
+        case TRICORE_REG_E_6: return std::make_pair(TRICORE_REG_D_6, TRICORE_REG_D_7);
+        case TRICORE_REG_D_8:
+        case TRICORE_REG_D_9:
+        case TRICORE_REG_E_8: return std::make_pair(TRICORE_REG_D_8, TRICORE_REG_D_9);
+        case TRICORE_REG_D_10:
+        case TRICORE_REG_D_11:
+        case TRICORE_REG_E_10: return std::make_pair(TRICORE_REG_D_10, TRICORE_REG_D_11);
+        case TRICORE_REG_D_12:
+        case TRICORE_REG_D_13:
+        case TRICORE_REG_E_12: return std::make_pair(TRICORE_REG_D_12, TRICORE_REG_D_13);
+        case TRICORE_REG_D_14:
+        case TRICORE_REG_D_15:
+        case TRICORE_REG_E_14: return std::make_pair(TRICORE_REG_D_14, TRICORE_REG_D_15);
+
+        case TRICORE_REG_A_0:
+        case TRICORE_REG_A_1:
+        case TRICORE_REG_P_0: return std::make_pair(TRICORE_REG_A_0, TRICORE_REG_A_1);
+        case TRICORE_REG_A_2:
+        case TRICORE_REG_A_3:
+        case TRICORE_REG_P_2: return std::make_pair(TRICORE_REG_A_2, TRICORE_REG_A_3);
+        case TRICORE_REG_A_4:
+        case TRICORE_REG_A_5:
+        case TRICORE_REG_P_4: return std::make_pair(TRICORE_REG_A_4, TRICORE_REG_A_5);
+        case TRICORE_REG_A_6:
+        case TRICORE_REG_A_7:
+        case TRICORE_REG_P_6: return std::make_pair(TRICORE_REG_A_6, TRICORE_REG_A_7);
+        case TRICORE_REG_A_8:
+        case TRICORE_REG_A_9:
+        case TRICORE_REG_P_8: return std::make_pair(TRICORE_REG_A_8, TRICORE_REG_A_9);
+        case TRICORE_REG_A_10:
+        case TRICORE_REG_A_11:
+        case TRICORE_REG_P_10: return std::make_pair(TRICORE_REG_A_10, TRICORE_REG_A_11);
+        case TRICORE_REG_A_12:
+        case TRICORE_REG_A_13:
+        case TRICORE_REG_P_12: return std::make_pair(TRICORE_REG_A_12, TRICORE_REG_A_13);
+        case TRICORE_REG_A_14:
+        case TRICORE_REG_A_15:
+        case TRICORE_REG_P_14: return std::make_pair(TRICORE_REG_A_14, TRICORE_REG_A_15);
+
+        default: break;
+    }
+    return std::make_pair(TRICORE_REG_INVALID, TRICORE_REG_INVALID);
+}
 
 #endif
