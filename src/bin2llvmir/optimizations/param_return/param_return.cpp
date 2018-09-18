@@ -1414,6 +1414,9 @@ void DataFlowEntry::applyToIrOrdinary()
 			}
                         else if (_config->getConfig().architecture.isTricore()) //TODO check
                         {
+                            if (argLoads.empty()) {
+                                continue;
+                            }
 
                             //clear old args and types
                             p.second.clear();
@@ -2361,6 +2364,7 @@ void DataFlowEntry::setArgumentTypes()
 
 std::pair<Value*, Type*> DataFlowEntry::getTricoreReturnValue() {
     Function* fnc = getFunction();
+
     for (BasicBlock &bb : fnc->getBasicBlockList()) { //Iterate over all BasicBlocks
         if (dyn_cast<ReturnInst>(bb.getTerminator())) { //Find the Return Inst
 
@@ -2381,6 +2385,10 @@ std::pair<Value*, Type*> DataFlowEntry::getTricoreReturnValue() {
                 }
             }
         }
+    }
+
+    if (fnc->getName().str() == "malloc") { //found malloc without BBlist, return a2
+        return std::make_pair(_config->getLlvmRegister("a2"), llvm::Type::getInt32PtrTy(fnc->getContext()));
     }
     return std::make_pair(_config->getLlvmRegister("d2"), llvm::Type::getInt32Ty(fnc->getContext())); // default return d2
 }
