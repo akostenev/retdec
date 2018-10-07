@@ -2317,8 +2317,9 @@ void Decoder::removeStaticallyLinkedFunctions()
 	}
 }
 
-bool isTriCoreLinkedFunctions(std::string n) {
-    return n == "putc" || n == "fputc" || n == "malloc" || n == "_Atrealloc" || n == "_Fwprep" || n == "write";
+bool isTriCoreLinkedFunction(std::string n) {
+    return n == "putc" || n == "fputc" || n == "malloc" || n == "_Atrealloc" || n == "_Fwprep" || n == "write"
+           || n == "calloc"; // || n == "_Stoul";
 }
 
 void Decoder::hackDeleteKnownLinkedFunctions()
@@ -2327,7 +2328,7 @@ void Decoder::hackDeleteKnownLinkedFunctions()
 	{
 		std::string n = f.getName();
 		if (n == "printf" || n == "scanf" || n == "strlen" || n == "strcmp"
-                    || (_config->getConfig().architecture.isTricore() && isTriCoreLinkedFunctions(n)))
+                    || (_config->getConfig().architecture.isTricore() && isTriCoreLinkedFunction(n)))
 		{
 			f.deleteBody();
 			auto* cff = _config->getConfigFunction(&f);
